@@ -78,11 +78,21 @@ if [ -z "$identite" ]; then
     done
 fi
 
-# --- 5. Modèle par défaut au premier lancement ------------------------------
-if ! curl -s --max-time 3 "$OLLAMA/api/tags" 2>/dev/null | grep -q '"llama3.2'; then
-    notifier "Téléchargement initial" "Modèle llama3.2:3b (~2 Go, une seule fois)"
-    ( curl -s -X POST "$OLLAMA/api/pull" -d '{"model":"llama3.2:3b","name":"llama3.2:3b","stream":false}' >/dev/null 2>&1 && \
-      osascript -e 'display notification "Le modèle llama3.2:3b est prêt — cliquez sur ↻ dans l'\''interface" with title "IA Locale" sound name "Glass"' 2>/dev/null ) &
+# --- 5. Premier modèle, si aucun n'est installé ------------------------------
+# Ministral 3 (Mistral AI, français natif, lit les images) ; Llama 3.2 en secours,
+# pour les versions d'Ollama trop anciennes pour Ministral 3.
+if ! curl -s --max-time 3 "$OLLAMA/api/tags" 2>/dev/null | grep -q '"digest"'; then
+    notifier "Téléchargement initial" "Premier modèle d'IA (~3 Go, une seule fois)"
+    (
+        for modele in ministral-3:3b llama3.2:3b; do
+            if curl -s -X POST "$OLLAMA/api/pull" \
+                 -d "{\"model\":\"$modele\",\"name\":\"$modele\",\"stream\":false}" 2>/dev/null \
+                 | grep -q '"success"'; then
+                osascript -e "display notification \"Le modèle $modele est prêt — cliquez sur ↻ dans l'interface\" with title \"IA Locale\" sound name \"Glass\"" 2>/dev/null
+                break
+            fi
+        done
+    ) &
 fi
 
 # --- 6. Interface ------------------------------------------------------------

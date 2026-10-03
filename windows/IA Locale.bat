@@ -112,14 +112,19 @@ exit /b 1
 )
 :serveur_ok
 
-rem --- 5. Modele par defaut au premier lancement ------------------------------
-curl -s --max-time 3 %OLLAMA%/api/tags 2>nul | findstr /c:"llama3.2" > nul
-if errorlevel 1 (
-    echo.
-    echo  Telechargement du modele llama3.2:3b - environ 2 Go, une seule fois.
-    echo.
-    "%OLLAMA_EXE%" pull llama3.2:3b
-)
+rem --- 5. Premier modele, si aucun n'est installe -----------------------------
+rem Ministral 3 (Mistral AI, francais natif, lit les images) ; Llama 3.2 en secours,
+rem pour les versions d'Ollama trop anciennes pour Ministral 3.
+curl -s --max-time 3 %OLLAMA%/api/tags 2>nul | findstr /c:"digest" > nul
+if not errorlevel 1 goto :modele_ok
+echo.
+echo  Telechargement du premier modele d'IA - environ 3 Go, une seule fois.
+echo.
+"%OLLAMA_EXE%" pull ministral-3:3b
+if not errorlevel 1 goto :modele_ok
+echo  Ministral 3 indisponible avec cette version d'Ollama : modele de secours.
+"%OLLAMA_EXE%" pull llama3.2:3b
+:modele_ok
 
 rem --- 6. Interface ------------------------------------------------------------
 start "" "%ADRESSE%/"
