@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>IA Locale</string>
+    <key>CFBundleDisplayName</key>
+    <string>IA Locale</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.ia-magique.ia-locale</string>
+    <key>CFBundleVersion</key>
+    <string>1.2.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.2.0</string>
+    <key>CFBundleExecutable</key>
+    <string>IA-Locale</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleSignature</key>
+    <string>????</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>10.13</string>
+    <key>LSApplicationCategoryType</key>
+    <string>public.app-category.productivity</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>LSUIElement</key>
+    <false/>
+    <key>NSHumanReadableCopyright</key>
+    <string>IA Locale — logiciel libre (licence MIT). Édité par 3h33.</string>
+</dict>
+</plist>

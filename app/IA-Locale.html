@@ -1,0 +1,2259 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light dark">
+<title>IA Locale — Confidentialité par construction</title>
+<style>
+  :root {
+    --bg: #f7f8fb;
+    --surface: #ffffff;
+    --surface-2: #f1f3f8;
+    --border: #e3e6ee;
+    --text: #1f2330;
+    --text-soft: #5a6275;
+    --accent: #2c6bed;
+    --accent-soft: #e7efff;
+    --ok: #1c8a5a;
+    --ok-soft: #e3f4ec;
+    --warn: #b47600;
+    --warn-soft: #fff3d6;
+    --danger: #b3261e;
+    --danger-soft: #fde5e3;
+    --shadow: 0 4px 14px rgba(20, 30, 60, 0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14161c;
+      --surface: #1c1f27;
+      --surface-2: #232732;
+      --border: #2d3240;
+      --text: #e9ecf3;
+      --text-soft: #a4abbb;
+      --accent: #6e9bff;
+      --accent-soft: #1f2c4d;
+      --ok: #4dbf86;
+      --ok-soft: #1a2f23;
+      --warn: #e1ab4a;
+      --warn-soft: #322a16;
+      --danger: #f3736b;
+      --danger-soft: #3a1f1c;
+      --shadow: 0 4px 16px rgba(0,0,0,0.4);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.55;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 600; font-size: 1.05rem;
+  }
+  .brand-mark {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: linear-gradient(135deg, #2c6bed 0%, #9b5fed 100%);
+    color: white; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.85rem;
+  }
+  .brand small { color: var(--text-soft); font-weight: 400; font-size: 0.78rem; }
+  nav.tabs { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+  nav.tabs button {
+    background: transparent; border: 1px solid transparent;
+    color: var(--text-soft); padding: 7px 14px; border-radius: 8px;
+    cursor: pointer; font-size: 0.92rem; font-weight: 500;
+    transition: all 0.15s;
+  }
+  nav.tabs button:hover { background: var(--surface-2); color: var(--text); }
+  nav.tabs button.active {
+    background: var(--accent-soft); color: var(--accent); border-color: var(--accent-soft);
+  }
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 20px; font-size: 0.78rem;
+    background: var(--surface-2); color: var(--text-soft);
+  }
+  .status-pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .status-pill.ko { background: var(--danger-soft); color: var(--danger); }
+  .status-pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+  main { flex: 1; padding: 24px; max-width: 1080px; margin: 0 auto; width: 100%; }
+  .panel { display: none; }
+  .panel.active { display: block; animation: fade 0.18s; }
+  @keyframes fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  h1, h2, h3 { color: var(--text); }
+  h1 { font-size: 1.5rem; margin: 0 0 12px; }
+  h2 { font-size: 1.15rem; margin: 24px 0 10px; }
+  h3 { font-size: 1rem; margin: 16px 0 8px; }
+  p { margin: 8px 0; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code {
+    background: var(--surface-2); padding: 2px 6px; border-radius: 5px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 0.88em;
+  }
+  pre {
+    background: var(--surface-2); border: 1px solid var(--border);
+    padding: 12px 14px; border-radius: 8px; overflow-x: auto;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 0.85rem;
+  }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px 20px; margin: 12px 0;
+    box-shadow: var(--shadow);
+  }
+  .card.tight { padding: 12px 14px; }
+  .card.accent { border-left: 3px solid var(--accent); }
+  .card.ok { border-left: 3px solid var(--ok); }
+  .card.warn { border-left: 3px solid var(--warn); background: linear-gradient(to right, var(--warn-soft) 0%, var(--surface) 30%); }
+  .card.danger { border-left: 3px solid var(--danger); }
+
+  .grid { display: grid; gap: 14px; }
+  .grid-2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .grid-3 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+
+  .btn {
+    background: var(--accent); color: white; border: none;
+    padding: 9px 16px; border-radius: 8px; cursor: pointer;
+    font-size: 0.92rem; font-weight: 500; transition: all 0.15s;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn.ghost {
+    background: transparent; color: var(--text); border: 1px solid var(--border);
+  }
+  .btn.ghost:hover { background: var(--surface-2); }
+  .btn.danger { background: var(--danger); }
+  .btn.small { padding: 5px 10px; font-size: 0.82rem; }
+
+  input[type=text], input[type=password], input[type=search], select, textarea {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 9px 12px; color: var(--text);
+    font-family: inherit; font-size: 0.95rem; width: 100%;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: 2px solid var(--accent-soft); border-color: var(--accent);
+  }
+  textarea { resize: vertical; min-height: 60px; }
+  label { display: block; font-size: 0.85rem; color: var(--text-soft); margin: 10px 0 4px; font-weight: 500; }
+
+  /* === CHAT === */
+  .chat-wrap { display: grid; grid-template-columns: 240px 1fr; gap: 14px; min-height: 70vh; }
+  @media (max-width: 740px) { .chat-wrap { grid-template-columns: 1fr; } .conv-list { max-height: 200px; } }
+  .conv-list {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 10px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .conv-item {
+    padding: 8px 10px; border-radius: 7px; cursor: pointer;
+    font-size: 0.88rem; color: var(--text-soft);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  }
+  .conv-item:hover { background: var(--surface-2); color: var(--text); }
+  .conv-item.active { background: var(--accent-soft); color: var(--accent); }
+  .conv-item .del { opacity: 0; font-size: 0.9rem; padding: 0 4px; }
+  .conv-item:hover .del { opacity: 0.6; }
+  .conv-item .del:hover { opacity: 1; }
+
+  .chat-main {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; display: flex; flex-direction: column; min-height: 0;
+  }
+  .chat-header {
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .chat-header select { width: auto; flex: 1; min-width: 160px; }
+  .messages {
+    flex: 1; overflow-y: auto; padding: 16px 18px;
+    display: flex; flex-direction: column; gap: 14px;
+    max-height: 60vh;
+  }
+  .message { display: flex; gap: 10px; }
+  .message.user { flex-direction: row-reverse; }
+  .bubble {
+    max-width: 80%; padding: 10px 14px; border-radius: 12px;
+    font-size: 0.94rem; white-space: pre-wrap; word-wrap: break-word;
+  }
+  .message.user .bubble { background: var(--accent); color: white; border-bottom-right-radius: 4px; }
+  .message.assistant .bubble {
+    background: var(--surface-2); color: var(--text);
+    border: 1px solid var(--border); border-bottom-left-radius: 4px;
+  }
+  .bubble.thinking::after {
+    content: '▍'; animation: blink 1s infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+  .composer {
+    padding: 12px 14px; border-top: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .composer .composer-row { display: flex; gap: 8px; align-items: flex-end; }
+  .composer textarea { flex: 1; min-height: 44px; max-height: 200px; resize: none; }
+  .composer .composer-extras {
+    display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+    font-size: 0.8rem; color: var(--text-soft);
+  }
+  .file-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--surface-2); padding: 4px 8px; border-radius: 6px;
+    font-size: 0.8rem; border: 1px solid var(--border);
+  }
+  .file-chip .x { cursor: pointer; opacity: 0.6; }
+  .file-chip .x:hover { opacity: 1; }
+
+  /* === PROMPTS === */
+  .prompt-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .prompt-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: var(--accent); }
+  .prompt-card h3 { margin: 0 0 6px; font-size: 0.98rem; }
+  .prompt-card p { font-size: 0.86rem; color: var(--text-soft); margin: 0; }
+  .prompt-category {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 0.72rem; background: var(--accent-soft); color: var(--accent);
+    margin-bottom: 6px; font-weight: 500;
+  }
+
+  /* === SWITCH === */
+  .switch-row { display: flex; align-items: center; gap: 10px; margin: 12px 0; }
+  .switch { position: relative; width: 38px; height: 22px; }
+  .switch input { display: none; }
+  .switch .slider {
+    position: absolute; inset: 0; background: var(--border);
+    border-radius: 22px; cursor: pointer; transition: 0.2s;
+  }
+  .switch .slider::before {
+    content: ''; position: absolute; width: 16px; height: 16px;
+    left: 3px; top: 3px; background: white; border-radius: 50%;
+    transition: 0.2s;
+  }
+  .switch input:checked + .slider { background: var(--accent); }
+  .switch input:checked + .slider::before { transform: translateX(16px); }
+
+  /* === SOURCES / FOOTNOTES === */
+  .sources {
+    background: var(--surface-2); border-radius: 8px;
+    padding: 10px 14px; font-size: 0.82rem; color: var(--text-soft);
+  }
+  .sources strong { color: var(--text); }
+  .sources a { font-size: 0.82rem; }
+
+  ol.steps { padding-left: 22px; margin: 8px 0; }
+  ol.steps li { margin: 6px 0; }
+
+  .badge {
+    display: inline-block; padding: 1px 8px; border-radius: 10px;
+    font-size: 0.72rem; font-weight: 600; vertical-align: middle;
+  }
+  .badge.local { background: var(--ok-soft); color: var(--ok); }
+  .badge.cloud { background: var(--warn-soft); color: var(--warn); }
+  .badge.free { background: var(--accent-soft); color: var(--accent); }
+
+  details { background: var(--surface-2); border-radius: 8px; padding: 8px 12px; margin: 8px 0; }
+  details > summary { cursor: pointer; font-weight: 500; padding: 4px 0; }
+
+  /* === MODAL DÉMARRAGE RAPIDE === */
+  .qs-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+    z-index: 9998; display: flex; align-items: center; justify-content: center;
+    padding: 20px; animation: fade 0.2s;
+  }
+  .qs-modal {
+    background: var(--surface); color: var(--text); max-width: 640px; width: 100%;
+    border-radius: 16px; box-shadow: 0 24px 60px rgba(0,0,0,0.3);
+    max-height: 90vh; overflow-y: auto;
+  }
+  .qs-modal-header {
+    padding: 24px 28px 8px; display: flex; justify-content: space-between; align-items: flex-start;
+  }
+  .qs-modal-header h2 { margin: 0; font-size: 1.4rem; }
+  .qs-modal-header .close {
+    background: transparent; border: none; font-size: 1.6rem; cursor: pointer;
+    color: var(--text-soft); padding: 0; line-height: 1;
+  }
+  .qs-modal-body { padding: 8px 28px 0; }
+  .qs-modal-body p { color: var(--text-soft); font-size: 0.95rem; }
+  .qs-steps {
+    display: grid; grid-template-columns: 1fr; gap: 12px;
+    margin: 18px 0;
+  }
+  .qs-step {
+    display: flex; gap: 14px; padding: 14px;
+    background: var(--surface-2); border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .qs-step .num {
+    flex: 0 0 36px; width: 36px; height: 36px; border-radius: 50%;
+    background: linear-gradient(135deg, #2c6bed 0%, #9b5fed 100%); color: white;
+    display: flex; align-items: center; justify-content: center; font-weight: 700;
+  }
+  .qs-step .content h4 { margin: 2px 0 4px; font-size: 1rem; }
+  .qs-step .content p { margin: 0; font-size: 0.88rem; color: var(--text-soft); }
+  .qs-modal-footer {
+    padding: 16px 28px 24px; display: flex; gap: 10px; justify-content: space-between; align-items: center;
+    border-top: 1px solid var(--border); margin-top: 12px;
+  }
+  #help-btn { margin-left: 4px; }
+
+  /* Markdown rendering inside bubbles */
+  .bubble h1, .bubble h2, .bubble h3 { margin: 8px 0 4px; color: inherit; }
+  .bubble h1 { font-size: 1.15rem; }
+  .bubble h2 { font-size: 1.05rem; }
+  .bubble h3 { font-size: 0.98rem; }
+  .bubble ul, .bubble ol { margin: 6px 0; padding-left: 22px; }
+  .bubble p { margin: 4px 0; }
+  .bubble code { background: rgba(0,0,0,0.08); }
+  .message.user .bubble code { background: rgba(255,255,255,0.18); }
+  .bubble pre { margin: 6px 0; }
+
+  .msg-actions {
+    display: flex; gap: 4px; margin-top: 6px;
+    font-size: 0.78rem; color: var(--text-soft);
+  }
+  .msg-actions button {
+    background: transparent; border: none; color: var(--text-soft);
+    cursor: pointer; padding: 2px 6px; border-radius: 5px;
+    font-size: 0.78rem;
+  }
+  .msg-actions button:hover { background: var(--surface-2); color: var(--text); }
+
+  /* ---- v1.2.0 ---- */
+  .discret { font-size: 0.82rem; color: var(--text-soft); }
+  .vide { color: var(--text-soft); font-size: 0.88rem; text-align: center; padding: 10px; }
+  .bandeau { background: var(--warn-soft); color: var(--text); padding: 12px 20px; border-bottom: 2px solid var(--warn);
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 0.92rem; }
+  .bandeau span { flex: 1; min-width: 220px; }
+  .bandeau .btn { margin-left: auto; }
+  .flash { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--text); color: var(--surface);
+    padding: 9px 16px; border-radius: 8px; font-size: 0.88rem; box-shadow: var(--shadow); z-index: 10000; max-width: min(90vw, 640px); text-align: center; }
+  #conv-search { margin-bottom: 8px; font-size: 0.85rem; padding: 6px 10px; }
+  .conv-item { display: flex; align-items: center; gap: 4px; }
+  .conv-item .titre { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .conv-item .ren { opacity: 0; font-size: 0.8rem; padding: 0 3px; }
+  .conv-item:hover .ren { opacity: 0.6; }
+  .conv-item .ren:hover { opacity: 1; }
+  .accueil-chat { text-align: center; color: var(--text-soft); padding: 26px 16px; }
+  .accueil-chat .salut { font-size: 1.6rem; margin: 0; }
+  .exemples { display: flex; flex-direction: column; gap: 8px; max-width: 520px; margin: 16px auto; }
+  .exemple { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px;
+    text-align: left; color: var(--text); cursor: pointer; font: inherit; font-size: 0.9rem; }
+  .exemple:hover { border-color: var(--accent); background: var(--accent-soft); }
+  .reponse { max-width: 82%; }
+  .question { max-width: 82%; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .note-msg { font-size: 0.74rem; color: var(--text-soft); margin-top: 3px; font-style: italic; }
+  .suites { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .suites button, .chip { background: var(--surface); border: 1px solid var(--border); color: var(--text-soft); border-radius: 999px;
+    padding: 4px 11px; font: inherit; font-size: 0.8rem; cursor: pointer; }
+  .suites button:hover, .chip:hover { border-color: var(--accent); color: var(--accent); }
+  .chip.on { background: var(--accent); border-color: var(--accent); color: white; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+  .vignettes { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .vignettes img { max-height: 140px; max-width: 220px; border-radius: 8px; border: 1px solid var(--border); }
+  .file-chip.image img { height: 22px; width: 22px; object-fit: cover; border-radius: 4px; vertical-align: middle; }
+  .file-chip small { color: var(--text-soft); }
+  .chat-main.depot { outline: 2px dashed var(--accent); outline-offset: -6px; }
+  .bubble .tableau { overflow-x: auto; margin: 8px 0; }
+  .bubble table { border-collapse: collapse; font-size: 0.88rem; }
+  .bubble th, .bubble td { border: 1px solid var(--border); padding: 5px 9px; text-align: left; vertical-align: top; }
+  .bubble th { background: var(--surface-2); }
+  .math { font-family: 'Cambria Math', 'STIX Two Math', Georgia, serif; font-size: 1.05em; white-space: nowrap; }
+  .prompt-pied { display: block; margin-top: 8px; font-size: 0.76rem; color: var(--accent); }
+  .prompt-pied .suppr { color: var(--danger); text-decoration: underline; }
+  .formulaire label { display: block; font-weight: 600; font-size: 0.86rem; margin: 12px 0 4px; }
+  .formulaire .qs-modal-footer { padding: 16px 0 20px; }
+  table.modeles { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+  table.modeles th { background: var(--surface-2); text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); }
+  table.modeles td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .badge-libre { font-weight: 600; }
+  table.modeles td:nth-child(3), table.modeles td:nth-child(4) { white-space: nowrap; }
+  .modele-ligne { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 4px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .modele-ligne:last-child { border-bottom: none; }
+  .modele-ligne .actions, .modele-carte .actions { display: flex; gap: 6px; align-items: center; }
+  .modele-carte p { margin: 6px 0; font-size: 0.9rem; }
+  .modele-carte.conseil { border-left: 3px solid var(--accent); }
+  .modele-tete { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .progression { height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; margin: 8px 0 2px; }
+  .progression div { height: 100%; background: var(--accent); transition: width 0.3s; }
+  @media (max-width: 720px) {
+    .reponse, .question { max-width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="brand-mark">IA</div>
+    <div>
+      IA Locale <span style="font-size:0.7rem; color:var(--text-soft); font-weight:400; margin-left:4px">v1.2.0</span>
+      <small style="display:block">Votre IA, sur votre ordinateur</small>
+    </div>
+  </div>
+  <nav class="tabs">
+    <button data-tab="chat" class="active">Chat IA</button>
+    <button data-tab="prompts">Bibliothèque</button>
+    <button data-tab="models">Modèles</button>
+    <button data-tab="home">Mode d'emploi</button>
+    <button data-tab="conformity">Conformité</button>
+    <button data-tab="settings">Réglages</button>
+  </nav>
+  <button id="help-btn" class="btn ghost small" title="Aide rapide" onclick="showQuickStart()" style="padding:5px 10px">? Aide</button>
+  <div id="status-pill" class="status-pill" title="État de la connexion à Ollama">
+    <span class="status-dot"></span>
+    <span id="status-text">Vérification…</span>
+  </div>
+</header>
+
+<main>
+
+<!-- ============== ONGLET ACCUEIL ============== -->
+<section class="panel" id="panel-home">
+  <h1>Mode d'emploi</h1>
+  <p style="color:var(--text-soft); font-size: 1rem;">
+    Cet outil vous donne accès à une <strong>intelligence artificielle qui tourne sur votre ordinateur</strong>, sans envoyer
+    vos données à un serveur extérieur. Les modèles utilisés sont <strong>libres et gratuits</strong>, mis à disposition
+    par Meta, Mistral AI (Paris), Microsoft, Google ou Alibaba.
+  </p>
+
+  <p style="font-size:0.92rem">
+    <a href="#sec-install">1. Installer</a> ·
+    <a href="#sec-modeles">2. Choisir son modèle</a> ·
+    <a href="#sec-verifier">3. Vérifier que c'est local</a> ·
+    <a href="#sec-limites">4. Limites à connaître</a> ·
+    <a href="#sec-materiel">5. Matériel</a>
+  </p>
+
+  <div class="card ok">
+    <strong>Ce qui est garanti, et que vous pouvez vérifier vous-même :</strong>
+    <ul style="margin:6px 0">
+      <li>En mode local (le mode par défaut), aucune donnée n'est envoyée à un serveur extérieur (preuves dans la section 3). Seul le mode cloud OpenRouter, que vous devez activer vous-même, envoie vos textes à un tiers.</li>
+      <li>Aucun compte, aucun cookie, aucun traceur publicitaire.</li>
+      <li>Tous les modèles proposés sont publiés sous licence libre par leurs éditeurs.</li>
+      <li>Le code d'IA Locale est <a href="https://github.com/team872/ia-locale" target="_blank" rel="noopener">public sur GitHub</a> (licence MIT), comme celui du moteur <a href="https://github.com/ollama/ollama" target="_blank" rel="noopener">Ollama</a> — n'importe qui peut les relire.</li>
+      <li>Cet outil fonctionne <strong>même sans connexion Internet</strong> une fois installé.</li>
+    </ul>
+  </div>
+
+  <!-- ====== 1. INSTALLATION ====== -->
+  <h2 id="sec-install">1. Installation</h2>
+
+  <div class="card accent" style="border-left:3px solid var(--accent)">
+    <h3 style="margin-top:0; color:var(--accent)">⚡ Méthode simple : un double-clic</h3>
+    <ol class="steps">
+      <li><strong>Si Ollama n'est pas installé</strong> sur votre ordinateur :
+        téléchargez-le sur <a href="https://ollama.com/download" target="_blank" rel="noopener">ollama.com/download</a>
+        et lancez l'installeur. <em>(Une seule fois dans votre vie.)</em></li>
+      <li><strong>Double-cliquez sur le lanceur :</strong>
+        <ul>
+          <li>Mac : <code>IA Locale.app</code> (à glisser dans Applications)</li>
+          <li>Windows : <code>IA Locale.bat</code> (dans le dossier <em>IA Locale</em>) — ou le raccourci créé par <code>Installer le raccourci bureau.bat</code></li>
+        </ul>
+        Le lanceur démarre Ollama, installe un premier modèle si nécessaire (Ministral 3, environ 3 Go),
+        et ouvre cette page avec la pastille verte en haut à droite. Il ne modifie aucun réglage d'Ollama.
+      </li>
+    </ol>
+    <p style="font-size:0.85rem; color:var(--text-soft)">
+      <strong>Au tout premier lancement :</strong> sur Mac, si macOS refuse d'ouvrir l'application (« Apple ne peut pas vérifier… »),
+      ouvrez <em>Réglages Système → Confidentialité et sécurité</em>, descendez jusqu'au message sur « IA Locale » et cliquez sur
+      <em>Ouvrir quand même</em> (sur macOS 14 et plus ancien : clic droit sur l'app → Ouvrir). Sur Windows, SmartScreen peut afficher
+      un avertissement : <em>Informations complémentaires → Exécuter quand même</em>. C'est normal : l'application n'est pas signée
+      par un certificat payant ; son code est <a href="https://github.com/team872/ia-locale" target="_blank" rel="noopener">lisible sur GitHub</a>.
+    </p>
+  </div>
+
+  <!-- ====== 2. MODÈLES ====== -->
+  <h2 id="sec-modeles">2. Choisir son modèle d'IA</h2>
+  <p>
+    Le <strong>modèle</strong> est le « cerveau » de l'IA. Il se télécharge une fois, puis fonctionne hors ligne sur votre machine.
+    Tous les modèles ci-dessous sont <strong>gratuits</strong> et publiés sous licence libre par leurs éditeurs. Vous pouvez en
+    installer plusieurs et passer de l'un à l'autre.
+  </p>
+  <p style="font-size:0.92rem; color:var(--text-soft)">
+    Pour en installer un : onglet <a href="#" onclick="switchTab('models'); return false;">Modèles</a>, bouton <em>Installer</em>.
+    Plus besoin du Terminal.
+  </p>
+  <div class="card tight" style="overflow-x:auto; padding:0"><div id="tableau-modeles"></div></div>
+  <p class="discret">Catalogue vérifié le 4 octobre 2026 dans la bibliothèque officielle d'Ollama. Les modèles marqués « images » savent lire une photo ou un schéma.</p>
+  <h3 style="margin-top:24px">Détail de chaque modèle</h3>
+  <div id="details-modeles"></div>
+  <div class="card ok">
+    <strong>Si vous débutez :</strong> <code>ministral-3:3b</code> (français, 8 Go de mémoire suffisent).
+    Avec 16 Go : <code>ministral-3:8b</code>. Machine très ancienne : <code>llama3.2:3b</code>.
+  </div>
+
+  <!-- ====== 3. VÉRIFIER LA LOCALITÉ ====== -->
+  <h2 id="sec-verifier">3. Comment vérifier que c'est vraiment local ?</h2>
+  <p>
+    Cette section liste <strong>trois vérifications indépendantes</strong> que n'importe quel enseignant peut faire,
+    sans compétence technique particulière, pour s'assurer que ses données ne sortent pas de la machine.
+    Vous n'avez pas à nous croire sur parole.
+  </p>
+
+  <div class="grid grid-2">
+    <div class="card tight">
+      <strong>✈️ Test n°1 : couper Internet</strong>
+      <p style="font-size:0.9rem">Coupez le Wi-Fi (ou activez le « Mode Avion »). Posez une question dans le Chat. <strong>Si la réponse arrive normalement</strong>, c'est qu'aucun serveur extérieur n'est sollicité. C'est la preuve la plus simple et la plus parlante.</p>
+    </div>
+    <div class="card tight">
+      <strong>🔍 Test n°2 : Moniteur d'activité</strong>
+      <p style="font-size:0.9rem">Ouvrez le <strong>Moniteur d'activité</strong> (Mac) ou le <strong>Gestionnaire des tâches</strong> (Windows) pendant qu'une réponse est en cours. Vous verrez le processus <code>ollama</code> consommer du CPU et de la RAM, sans pic notable de trafic réseau.</p>
+    </div>
+    <div class="card tight">
+      <strong>📡 Test n°3 : observer les connexions</strong>
+      <p style="font-size:0.9rem">Pour les plus curieux : dans le Terminal, tapez <code>lsof -i -P | grep ollama</code> (Mac) ou utilisez Resource Monitor (Windows). Vous verrez uniquement des connexions <em>locales</em> (localhost / 127.0.0.1), aucune sortie vers Internet.</p>
+    </div>
+    <div class="card tight">
+      <strong>🔓 Test n°4 : lire le code source</strong>
+      <p style="font-size:0.9rem">Ollama est <a href="https://github.com/ollama/ollama" target="_blank" rel="noopener">publié sur GitHub</a> sous licence MIT. Le code complet est lisible publiquement. La même page HTML que vous utilisez est également un fichier texte — clic droit → « Afficher la source » pour la lire.</p>
+    </div>
+  </div>
+
+  <p style="font-size:0.85rem; color:var(--text-soft); margin-top:8px">
+    <strong>Nuance honnête :</strong> Ollama vérifie au démarrage si une nouvelle version est disponible (ping unique
+    vers leur serveur de mises à jour). Cela n'envoie aucun contenu de conversation, juste le numéro de version.
+    Si vous voulez couper même cela : désactivez Internet ou bloquez les sorties d'Ollama dans votre pare-feu.
+  </p>
+
+  <!-- ====== 4. LIMITES HONNÊTES ====== -->
+  <h2 id="sec-limites">4. Ce que ces modèles savent (et ne savent pas) faire</h2>
+
+  <div class="card">
+    <h3 style="margin-top:0">✅ Ils sont bons à</h3>
+    <ul>
+      <li>Rédiger des plans de séquence, des consignes, des QCM, des fiches.</li>
+      <li>Reformuler, simplifier, expliquer un concept à différents niveaux.</li>
+      <li>Donner un premier feedback structuré sur une production écrite.</li>
+      <li>Proposer des activités, des mises en situation, des questions de relance.</li>
+      <li>Traduire, résumer, comparer des contenus.</li>
+    </ul>
+  </div>
+
+  <div class="card warn">
+    <h3 style="margin-top:0">⚠️ Ils ne savent pas (ou mal)</h3>
+    <ul>
+      <li><strong>Connaître l'actualité récente.</strong> Leur connaissance s'arrête à leur date d'entraînement (2023-2024 selon les modèles). Ne leur demandez pas qui a gagné les élections de l'an dernier.</li>
+      <li><strong>Garantir l'exactitude.</strong> Les IA génératives peuvent <em>halluciner</em> : inventer une citation, une date, un nom d'auteur, une source plausible mais fausse. Toute information factuelle doit être <strong>vérifiée par vous</strong> avant usage en classe.</li>
+      <li><strong>Calculer parfaitement.</strong> Sur l'arithmétique complexe ou les formules, ils peuvent se tromper. Utilisez une calculatrice pour vérifier.</li>
+      <li><strong>Citer des sources fiables.</strong> S'ils mentionnent un livre, un article ou un chiffre, vérifiez l'existence réelle avant de l'utiliser.</li>
+      <li><strong>Évaluer une copie à votre place.</strong> Ils peuvent proposer des pistes de retour ; la note et le jugement pédagogique restent votre prérogative (rappel du cadre d'usage EN, juin 2025).</li>
+    </ul>
+  </div>
+
+  <div class="card accent">
+    <h3 style="margin-top:0">💡 La bonne posture</h3>
+    <p>Considérez ces modèles comme <strong>un stagiaire compétent mais à relire</strong>. Ils dégrossissent un travail
+    rapidement, mais ne remplacent ni votre expertise disciplinaire, ni votre connaissance de vos élèves,
+    ni votre responsabilité d'enseignant. Ils sont des outils — utiles, gratuits, respectueux de la vie privée —
+    pas des oracles.</p>
+  </div>
+
+  <!-- ====== 5. MATÉRIEL ====== -->
+  <h2 id="sec-materiel">5. Configuration matérielle</h2>
+  <div class="card">
+    <p><strong>Minimum :</strong> 8 Go de RAM, processeur des 5 dernières années. → <code>ministral-3:3b</code>, <code>qwen3.5:4b</code>, <code>granite4.2:3b</code> ou <code>llama3.2:3b</code>.</p>
+    <p><strong>Confortable :</strong> 16 Go de RAM. → <code>ministral-3:8b</code>, <code>gemma4:e4b</code>, <code>qwen3.5:9b</code> fonctionnent fluidement.</p>
+    <p><strong>Idéal :</strong> Mac Apple Silicon (M1 à M5) ou PC avec carte graphique dédiée. → Avec 24 à 32 Go : <code>gpt-oss:20b</code> ou <code>mistral-small3.2:24b</code>.</p>
+    <p style="font-size:0.88rem"><strong>Astuce :</strong> si une réponse met plus de 30 secondes à arriver, votre machine est probablement à la limite — passez sur un modèle plus petit. La vitesse dépend surtout de la RAM et du GPU.</p>
+  </div>
+
+  <div class="card warn">
+    <strong>Pas de matériel suffisant ?</strong> Vous pouvez activer une clé OpenRouter optionnelle pour utiliser
+    des modèles gratuits dans le cloud. ⚠️ Dans ce cas, les textes saisis transitent par un serveur tiers : <strong>n'envoyez aucune donnée personnelle d'élève</strong> et utilisez l'anonymisation automatique.
+    <br><a href="#" onclick="switchTab('settings'); return false;">Aller aux réglages →</a>
+  </div>
+
+  <p style="text-align:center; margin-top:24px">
+    <button class="btn" onclick="switchTab('chat')">Aller au Chat →</button>
+    <button class="btn ghost" onclick="switchTab('prompts')" style="margin-left:8px">Voir la bibliothèque de prompts →</button>
+  </p>
+</section>
+
+<!-- ============== ONGLET CHAT ============== -->
+<section class="panel active" id="panel-chat">
+  <div class="chat-wrap">
+    <aside class="conv-list" id="conv-list">
+      <button class="btn small" id="new-conv-btn" style="margin-bottom:6px">+ Nouvelle conversation</button>
+      <input type="search" id="conv-search" placeholder="Rechercher…" aria-label="Rechercher dans les conversations">
+      <div id="conv-items"></div>
+    </aside>
+    <div class="chat-main">
+      <div class="chat-header">
+        <label style="margin:0; flex:0 0 auto">Modèle :</label>
+        <select id="model-select"><option>Chargement…</option></select>
+        <span id="mode-indicator" class="badge local">Local</span>
+        <button class="btn ghost small" id="refresh-models" title="Re-détecter les modèles">↻</button>
+      </div>
+      <div class="messages" id="messages">
+        <div style="text-align:center; color:var(--text-soft); padding: 30px 16px">
+          <p style="font-size:1.6rem; margin:0">👋</p>
+          <p>Posez votre question, glissez un fichier, ou choisissez un prompt dans la <a href="#" onclick="switchTab('prompts'); return false;">bibliothèque pédagogique</a>.</p>
+          <p style="font-size:0.85rem">Tout reste sur votre ordinateur en mode local.</p>
+        </div>
+      </div>
+      <div class="composer">
+        <div id="attached-files"></div>
+        <div class="composer-row">
+          <textarea id="prompt-input" placeholder="Votre message… (Maj+Entrée pour aller à la ligne)" rows="2"></textarea>
+          <button class="btn ghost" id="attach-btn" title="Joindre un fichier ou une photo (PDF, texte, image) — ou glissez-le ici">📎</button>
+          <button class="btn" id="send-btn">Envoyer</button>
+        </div>
+        <div class="composer-extras">
+          <span class="switch-row" style="margin:0">
+            <label class="switch" title="Anonymiser automatiquement les prénoms/noms avant envoi">
+              <input type="checkbox" id="anon-toggle">
+              <span class="slider"></span>
+            </label>
+            <span style="font-size:0.82rem">Anonymisation auto</span>
+          </span>
+          <span id="anon-info" style="font-size:0.78rem; display:none">— prénoms et noms remplacés par Élève A, B, C… avant l'envoi</span>
+          <button class="btn ghost small" id="save-prompt-btn" title="Garder ce texte dans « Mes prompts »" style="margin-left:auto">☆ Garder comme prompt</button>
+          <input type="file" id="file-input" accept=".txt,.md,.pdf,.csv,.html,image/png,image/jpeg,image/webp,image/gif" style="display:none" multiple>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== ONGLET PROMPTS ============== -->
+<section class="panel" id="panel-prompts">
+  <h1>Bibliothèque de prompts pédagogiques</h1>
+  <p style="color:var(--text-soft)">Cliquez sur un prompt : un petit formulaire vous demande les informations utiles (niveau, thème…), puis l'envoie dans le chat.</p>
+  <input type="search" id="prompt-search" placeholder="Rechercher un prompt…" aria-label="Rechercher un prompt" style="margin-bottom:10px">
+  <div id="prompt-cats" class="chips"></div>
+  <div id="mes-prompts-bloc" style="display:none">
+    <h2 style="font-size:1.05rem">Mes prompts</h2>
+    <div class="grid grid-2" id="mes-prompts"></div>
+    <h2 style="font-size:1.05rem; margin-top:22px">Bibliothèque</h2>
+  </div>
+  <div class="grid grid-2" id="prompts-grid"></div>
+  <p class="discret" style="margin-top:14px">Astuce : dans le chat, le bouton <em>☆ Garder comme prompt</em> range votre propre texte ici.</p>
+</section>
+
+<!-- ============== ONGLET MODÈLES ============== -->
+<section class="panel" id="panel-models">
+  <h1>Modèles d'IA</h1>
+  <p style="color:var(--text-soft)">Installez, choisissez ou supprimez les modèles, sans Terminal. Un modèle se télécharge une fois, puis fonctionne hors ligne.</p>
+  <div class="card warn" id="modeles-hors-ligne" style="display:none">Le moteur Ollama ne répond pas : lancez-le pour installer ou gérer les modèles.</div>
+  <h2 style="font-size:1.1rem">Sur cet ordinateur</h2>
+  <div id="modeles-installes" class="card tight"></div>
+  <h2 style="font-size:1.1rem; margin-top:24px">À installer</h2>
+  <p class="discret">Vérifiez la mémoire de votre ordinateur (Mac : menu Pomme → À propos de ce Mac ; Windows : Paramètres → Système → Informations) et choisissez un modèle adapté.</p>
+  <div class="grid grid-2" id="modeles-catalogue"></div>
+</section>
+
+<!-- ============== ONGLET CONFORMITÉ ============== -->
+<section class="panel" id="panel-conformity">
+  <h1>Conformité — ce que dit la réglementation</h1>
+  <p style="color:var(--text-soft)">
+    Cet outil est conçu pour respecter par défaut le <strong>cadre d'usage de l'IA en éducation</strong>
+    publié par le Ministère de l'Éducation nationale (juin 2025) et les recommandations de la <strong>CNIL</strong>.
+  </p>
+
+  <div class="card ok">
+    <h3 style="margin-top:0">✅ Ce qui est garanti en mode local (Ollama)</h3>
+    <ul>
+      <li>Aucune donnée n'est envoyée sur Internet.</li>
+      <li>Aucun compte n'est créé, aucun cookie, aucun traceur publicitaire.</li>
+      <li>Vos conversations restent dans le navigateur (localStorage) — supprimables à tout moment.</li>
+      <li>Les modèles utilisés sont open-source (Llama, Mistral, Phi, Qwen…).</li>
+    </ul>
+  </div>
+
+  <h2>Les 5 principes du cadre d'usage Éducation nationale (juin 2025)</h2>
+  <div class="grid grid-2">
+    <div class="card tight"><strong>1. Plus-value pédagogique</strong><p style="font-size:0.88rem">L'IA doit apporter un bénéfice réel à l'apprentissage, pas juste être utilisée pour l'effet « wow ».</p></div>
+    <div class="card tight"><strong>2. Protection des données</strong><p style="font-size:0.88rem">Vigilance accrue avec les outils grand public. Le mode local de cette page résout cette question.</p></div>
+    <div class="card tight"><strong>3. Conscience environnementale</strong><p style="font-size:0.88rem">L'IA générative consomme de l'énergie. Privilégier les modèles légers (3B-8B) pour les usages courants.</p></div>
+    <div class="card tight"><strong>4. Transparence</strong><p style="font-size:0.88rem">Indiquer quand un contenu a été produit avec une IA, en classe comme dans vos préparations.</p></div>
+    <div class="card tight"><strong>5. Esprit critique</strong><p style="font-size:0.88rem">Toute production de l'IA doit être relue, vérifiée, corrigée. Elle peut se tromper, inventer des sources, présenter des biais.</p></div>
+  </div>
+
+  <h2>Recommandations CNIL pour les enseignants</h2>
+  <div class="card">
+    <ul>
+      <li><strong>Pas de compte individuel élève</strong> quand c'est évitable. Si nécessaire, privilégier un compte « classe ».</li>
+      <li><strong>Pas de réutilisation</strong> des données par l'outil pour entraîner ses modèles.</li>
+      <li><strong>Pas d'élément de vie privée</strong> de l'élève (santé, famille, opinions…) saisi dans un outil d'IA.</li>
+      <li><strong>L'évaluation reste de votre responsabilité.</strong> L'IA peut aider à formuler un retour, mais la note et la décision sont votre prérogative pédagogique.</li>
+      <li><strong>Sensibiliser les élèves</strong> à la protection de leurs données dans l'usage des outils numériques.</li>
+    </ul>
+  </div>
+
+  <h2>Règles pour les élèves (cadre EN juin 2025)</h2>
+  <div class="card warn">
+    <ul>
+      <li>L'usage de l'IA générative <strong>par les élèves en classe</strong> est autorisé <strong>à partir de la 4ᵉ</strong>, et doit être limité, encadré, expliqué.</li>
+      <li>Tout recours à l'IA pour réaliser un devoir <strong>sans autorisation explicite et sans appropriation personnelle</strong> est considéré comme une <strong>fraude</strong>.</li>
+      <li>Une micro-formation Pix dédiée est <strong>obligatoire</strong> pour les 4ᵉ et 2ᵈᵉ depuis la rentrée 2025.</li>
+    </ul>
+  </div>
+
+  <h2>Sources officielles</h2>
+  <div class="sources">
+    <p><strong>Ministère de l'Éducation nationale :</strong>
+      <a href="https://www.education.gouv.fr/cadre-d-usage-de-l-ia-en-education-450647" target="_blank" rel="noopener">Cadre d'usage de l'IA en éducation</a>
+      — <a href="https://www.education.gouv.fr/sites/default/files/2025-06/l-ia-en-ducation---cadre-d-usage-440685.pdf" target="_blank" rel="noopener">PDF complet (juin 2025)</a>
+    </p>
+    <p><strong>CNIL :</strong>
+      <a href="https://www.cnil.fr/fr/enseignant-usage-systeme-ia" target="_blank" rel="noopener">Enseignant : comment utiliser un système d'IA</a>
+      — <a href="https://www.cnil.fr/fr/education-mise-en-place-systeme-ia" target="_blank" rel="noopener">Responsable de traitement</a>
+      — <a href="https://www.cnil.fr/fr/education-pro" target="_blank" rel="noopener">Dossier Éducation</a>
+    </p>
+    <p><strong>Académie :</strong>
+      <a href="https://pedagogie.ac-guadeloupe.fr/sites/default/files/2025-02/guide_ia_enseignants_1.pdf" target="_blank" rel="noopener">Guide IA pour enseignants (Ac. Guadeloupe)</a>
+    </p>
+  </div>
+</section>
+
+<!-- ============== ONGLET RÉGLAGES ============== -->
+<section class="panel" id="panel-settings">
+  <h1>Réglages</h1>
+
+  <div class="card">
+    <h3 style="margin-top:0">Mode local <span class="badge local">recommandé</span></h3>
+    <label>URL du serveur Ollama</label>
+    <input type="text" id="ollama-url" value="http://localhost:11434" placeholder="http://localhost:11434">
+    <p style="font-size:0.85rem; color:var(--text-soft); margin-top:8px">
+      Laissez la valeur par défaut sauf si vous avez configuré Ollama autrement.
+    </p>
+    <button class="btn ghost small" id="test-ollama">Tester la connexion</button>
+    <span id="ollama-test-result" style="margin-left:10px; font-size:0.85rem"></span>
+  </div>
+
+  <div class="card warn">
+    <h3 style="margin-top:0">Mode OpenRouter <span class="badge cloud">cloud</span></h3>
+    <p style="font-size:0.9rem">
+      OpenRouter donne accès à des dizaines de modèles dont plusieurs <strong>gratuits</strong>.
+      <strong>⚠️ Les textes saisis transitent par leurs serveurs.</strong>
+      N'utilisez ce mode que pour des contenus sans donnée personnelle (ou activez l'anonymisation automatique).
+    </p>
+    <label>Clé API OpenRouter (optionnelle)</label>
+    <input type="password" id="openrouter-key" placeholder="sk-or-v1-…">
+    <p style="font-size:0.82rem; color:var(--text-soft); margin-top:6px">
+      Créez une clé gratuite sur <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>.
+      Elle est stockée uniquement dans votre navigateur (localStorage).
+    </p>
+    <div class="switch-row">
+      <label class="switch">
+        <input type="checkbox" id="prefer-or">
+        <span class="slider"></span>
+      </label>
+      <span>Préférer OpenRouter quand disponible (sinon : local prioritaire — recommandé)</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Anonymisation</h3>
+    <p style="font-size:0.9rem">
+      Quand l'option est activée dans le chat, l'outil remplace les prénoms et noms de famille repérés par
+      <em>Élève A, B, C…</em> (et les adultes cités avec Mme, M.… par <em>Personne A…</em>) <strong>avant</strong> l'envoi
+      au modèle — pour toute la conversation. Indispensable en mode cloud ; utile aussi en local.
+    </p>
+    <label>Prénoms à toujours masquer (un par ligne) — ceux de votre classe absents de la liste intégrée</label>
+    <textarea id="custom-names" rows="3" placeholder="Kenjiro&#10;Maëlwenn&#10;Ilyana"></textarea>
+    <label style="margin-top:10px">Noms à ne jamais masquer (un par ligne) — auteurs, personnages étudiés…</label>
+    <textarea id="keep-names" rows="2" placeholder="Harry Potter&#10;Cosette"></textarea>
+    <p style="font-size:0.82rem; color:var(--text-soft)">
+      La liste intégrée compte environ 500 prénoms courants, et les personnalités souvent étudiées (Victor Hugo, Marie Curie…)
+      ne sont jamais masquées. L'anonymisation est une aide : relisez ce que vous envoyez.
+    </p>
+    <div class="switch-row">
+      <label class="switch"><input type="checkbox" id="reidentify"><span class="slider"></span></label>
+      <span>Rétablir les vrais noms dans les réponses affichées (sur votre écran seulement)</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-top:0">Affichage & comportement</h3>
+    <div class="switch-row">
+      <label class="switch">
+        <input type="checkbox" id="show-disclaimer" checked>
+        <span class="slider"></span>
+      </label>
+      <span>Afficher un rappel « relire / vérifier » sous chaque réponse</span>
+    </div>
+    <label>Instruction système (envoyée à chaque conversation)</label>
+    <textarea id="system-prompt" rows="4">Tu es un assistant pédagogique pour un enseignant en France. Tu réponds en français, de manière claire, structurée et bienveillante. Tu adaptes le niveau et le vocabulaire au public d'élèves indiqué. Tu rappelles, quand c'est pertinent, qu'une production IA doit être relue par l'enseignant.</textarea>
+  </div>
+
+  <div class="card danger">
+    <h3 style="margin-top:0">Données</h3>
+    <p style="font-size:0.9rem">Toutes les données (conversations, réglages) sont stockées localement dans votre navigateur.</p>
+    <button class="btn ghost small" id="export-all">Exporter (sauvegarde)</button>
+    <button class="btn ghost small" id="import-btn" style="margin-left:8px">Importer une sauvegarde</button>
+    <input type="file" id="import-file" accept=".json,application/json" style="display:none">
+    <p style="font-size:0.82rem; color:var(--text-soft); margin-top:8px">Vous utilisiez la version 1.1 ? Exportez depuis l'ancienne version, puis importez ici.</p>
+    <button class="btn danger small" id="clear-all" style="margin-left:8px">Tout effacer</button>
+  </div>
+</section>
+
+</main>
+
+<script>
+/* ============================================================
+   IA Locale — script unique, vanilla JS, aucune dépendance en ligne.
+   pdf.js est inclus dans lib/ : la lecture des PDF marche hors ligne.
+============================================================ */
+const VERSION = '1.2.0';
+
+const LS = {
+  conv: 'iaprofs.conversations',
+  active: 'iaprofs.active',
+  settings: 'iaprofs.settings',
+  prompts: 'iaprofs.mesprompts',
+  vu: 'iaprofs.qs.seen',
+};
+
+const defaultSettings = {
+  ollamaUrl: 'http://localhost:11434',
+  openrouterKey: '',
+  preferOR: false,
+  anon: false,
+  reidentify: true,
+  customNames: '',
+  keepNames: '',
+  showDisclaimer: true,
+  systemPrompt: "Tu es un assistant pédagogique pour un enseignant en France. Tu réponds en français, de manière claire, structurée et bienveillante. Tu adaptes le niveau et le vocabulaire au public d'élèves indiqué. Tu rappelles, quand c'est pertinent, qu'une production IA doit être relue par l'enseignant.",
+  lastModel: '',
+};
+
+/* Catalogue des modèles proposés — vérifié le 4 octobre 2026 dans la bibliothèque
+   officielle d'Ollama (existence du modèle et poids réel du téléchargement). */
+const CATALOGUE = [
+  { id: 'ministral-3:3b', nom: 'Ministral 3 · 3B', editeur: 'Mistral AI (Paris)', go: 3.0, ram: 8, licence: 'Apache 2.0', images: true, conseil: true,
+    pour: 'Démarrer en français ; lit aussi les images',
+    detail: "Le plus petit modèle de Mistral AI, la start-up parisienne. Français natif, réponses claires, et il sait lire une image (photo d'une copie, d'un schéma). Le meilleur point de départ sur un ordinateur de 8 Go." },
+  { id: 'llama3.2:3b', nom: 'Llama 3.2 · 3B', editeur: 'Meta (USA)', go: 2.0, ram: 8, licence: 'Llama 3.2 Community', licenceUrl: 'https://www.llama.com/llama3_2/license/',
+    pour: 'Les ordinateurs les plus modestes',
+    detail: "Publié par Meta en septembre 2024. Le plus léger de la liste : rapide même sur une machine ancienne. Français correct mais moins nuancé que Ministral. Licence communautaire de Meta, gratuite pour cet usage." },
+  { id: 'granite4.2:3b', nom: 'Granite 4.2 · 3B', editeur: 'IBM (USA)', go: 2.2, ram: 8, licence: 'Apache 2.0',
+    pour: 'Résumer et interroger des documents',
+    detail: "Conçu par IBM pour le travail sur documents : résumer, extraire, répondre à partir d'un texte fourni. Français pris en charge. Un bon choix pour exploiter les PDF que vous joignez." },
+  { id: 'qwen3.5:4b', nom: 'Qwen 3.5 · 4B', editeur: 'Alibaba (Chine)', go: 3.4, ram: 8, licence: 'Apache 2.0', images: true,
+    pour: 'Raisonnement, mathématiques, images',
+    detail: "Publié en mars 2026. Très fort en raisonnement pour sa taille, lit les images, 201 langues. Transparence : il est entraîné par une entreprise chinoise ; utilisé ici en local, il ne transmet rien à personne." },
+  { id: 'ministral-3:8b', nom: 'Ministral 3 · 8B', editeur: 'Mistral AI (Paris)', go: 6.0, ram: 16, licence: 'Apache 2.0', images: true, conseil: true,
+    pour: 'Le meilleur français sur 16 Go',
+    detail: "La version intermédiaire de Ministral 3 : nettement plus fine dans l'écriture et le raisonnement, toujours avec la lecture d'images. Le meilleur choix pour un ordinateur de 16 Go." },
+  { id: 'gemma4:e4b', nom: 'Gemma 4 · E4B', editeur: 'Google (USA)', go: 6.6, ram: 16, licence: 'Apache 2.0', images: true,
+    pour: 'Polyvalent, écriture soignée',
+    detail: "Publié par Google en avril 2026, et pour la première fois sous licence libre Apache 2.0. Lit les images, écrit avec soin, très polyvalent." },
+  { id: 'qwen3.5:9b', nom: 'Qwen 3.5 · 9B', editeur: 'Alibaba (Chine)', go: 6.6, ram: 16, licence: 'Apache 2.0', images: true,
+    pour: 'Tâches complexes et longues',
+    detail: "Le grand frère de Qwen 3.5 · 4B : plus solide sur les consignes longues et les tâches en plusieurs étapes. Même remarque de transparence sur son origine." },
+  { id: 'gpt-oss:20b', nom: 'gpt-oss · 20B', editeur: 'OpenAI (USA)', go: 13.8, ram: 24, licence: 'Apache 2.0',
+    pour: 'Raisonnement approfondi',
+    detail: "Le modèle ouvert d'OpenAI (août 2025). Il « réfléchit » avant de répondre : plus lent, mais excellent sur les problèmes difficiles. Demande au moins 16 Go de mémoire, 24 Go pour être à l'aise." },
+  { id: 'mistral-small3.2:24b', nom: 'Mistral Small 3.2 · 24B', editeur: 'Mistral AI (Paris)', go: 15.2, ram: 32, licence: 'Apache 2.0',
+    pour: 'Qualité maximale en français',
+    detail: "Le plus grand modèle de la liste (juin 2025). La meilleure qualité de rédaction en français, pour les ordinateurs puissants (32 Go de mémoire)." },
+];
+
+// Modèles OpenRouter de secours, si la liste en ligne ne se charge pas (relevés le 4/10/2026).
+// La liste réelle est relue chez OpenRouter : les gratuits changent souvent, et la 1.1
+// proposait cinq modèles qui avaient tous disparu.
+const OR_SECOURS = [
+  { id: 'google/gemma-4-31b-it:free', label: 'Gemma 4 31B' },
+  { id: 'qwen/qwen3.8-27b:free', label: 'Qwen 3.8 27B' },
+  { id: 'nvidia/nemotron-3-super-120b-a12b:free', label: 'Nemotron 3 Super' },
+];
+let modelesOR = null;
+
+const SUITES = [
+  { label: 'Plus court', texte: 'Rends ta réponse plus courte et va à l\'essentiel.' },
+  { label: 'Plus détaillé', texte: 'Développe davantage ta réponse, avec des exemples concrets.' },
+  { label: 'Plus simple', texte: 'Reformule ta réponse avec des mots simples, compréhensibles par un élève.' },
+  { label: 'En tableau', texte: 'Présente ta réponse sous forme de tableau.' },
+  { label: 'Exemples', texte: 'Donne trois exemples supplémentaires.' },
+  { label: 'En anglais', texte: 'Traduis ta réponse en anglais.' },
+];
+
+const EXEMPLES = [
+  'Propose 3 idées d\'activités pour introduire les fractions en CM1.',
+  'Rédige un mot aux parents pour annoncer une sortie au musée le 15 novembre.',
+  'Crée un QCM de 5 questions sur le cycle de l\'eau, avec le corrigé.',
+];
+
+let settings = loadSettings();
+let conversations = loadConversations();
+let mesPrompts = chargerMesPrompts();
+let activeId = localStorage.getItem(LS.active) || null;
+let attachedFiles = [];   // { name, text }
+let attachedImages = [];  // { name, base64, apercu }
+let isStreaming = false;
+let controleur = null;    // AbortController de la génération en cours
+let modelesLocaux = [];   // noms renvoyés par Ollama
+const capacites = {};     // nom du modèle → liste de capacités (vision…)
+
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem(LS.settings) || '{}');
+    return { ...defaultSettings, ...s };
+  } catch { return { ...defaultSettings }; }
+}
+function saveSettings() { localStorage.setItem(LS.settings, JSON.stringify(settings)); }
+function loadConversations() {
+  try { return JSON.parse(localStorage.getItem(LS.conv) || '[]'); } catch { return []; }
+}
+function saveConversations() {
+  try {
+    localStorage.setItem(LS.conv, JSON.stringify(conversations));
+  } catch (e) {
+    // Le navigateur limite la place (quelques Mo) : on prévient au lieu d'échouer en silence.
+    flash('⚠️ Mémoire du navigateur pleine : supprimez d\'anciennes conversations (ou exportez-les).', 5000);
+    console.error('Sauvegarde impossible', e);
+  }
+}
+function chargerMesPrompts() {
+  try { return JSON.parse(localStorage.getItem(LS.prompts) || '[]'); } catch { return []; }
+}
+function sauverMesPrompts() { localStorage.setItem(LS.prompts, JSON.stringify(mesPrompts)); }
+
+/* ============================================================
+   ONGLETS
+============================================================ */
+function switchTab(name) {
+  document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + name));
+  if (name === 'chat') setTimeout(() => document.getElementById('prompt-input')?.focus(), 50);
+  if (name === 'models') renderModeles();
+}
+document.querySelectorAll('nav.tabs button').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+
+/* ============================================================
+   DÉTECTION OLLAMA
+============================================================ */
+async function detectOllama() {
+  const pill = document.getElementById('status-pill');
+  const txt = document.getElementById('status-text');
+  pill.className = 'status-pill warn'; txt.textContent = 'Vérification…';
+  hideCorsBanner();
+  if (settings.openrouterKey && !modelesOR) await chargerModelesOR();
+  try {
+    const r = await fetch(settings.ollamaUrl + '/api/tags');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    modelesLocaux = (data.models || []).map(m => m.name);
+    window.__tailles = Object.fromEntries((data.models || []).map(m => [m.name, m.size]));
+    pill.className = 'status-pill ok';
+    txt.textContent = modelesLocaux.length
+      ? `Prêt · ${modelesLocaux.length} modèle${modelesLocaux.length > 1 ? 's' : ''}`
+      : 'Prêt · aucun modèle';
+    populateModelSelect(modelesLocaux);
+    if (!modelesLocaux.length) showBanner('aucun-modele');
+    return modelesLocaux;
+  } catch (e) {
+    modelesLocaux = [];
+    pill.className = 'status-pill ko';
+    txt.textContent = 'Ollama injoignable';
+    showBanner(location.protocol === 'file:' ? 'fichier' : 'ollama');
+    populateModelSelect([]);
+    return [];
+  }
+}
+
+// Bandeau d'aide. Il ne propose JAMAIS d'ouvrir Ollama à tous les sites (OLLAMA_ORIGINS="*") :
+// c'est le réglage dangereux que la version 1.1 recommandait.
+function showBanner(cas) {
+  hideCorsBanner();
+  const textes = {
+    fichier: `<strong>Ouvrez IA Locale avec son lanceur.</strong> <span>Ouverte directement comme un fichier, cette page ne peut pas parler à l'IA. Double-cliquez sur <code>IA Locale</code> (Mac : l'application ; Windows : <code>IA Locale.bat</code>).</span>`,
+    ollama: `<strong>Le moteur Ollama ne répond pas.</strong> <span>Lancez l'application Ollama (ou relancez IA Locale), puis cliquez sur ↻. Pas encore installé ? <a href="https://ollama.com/download" target="_blank" rel="noopener">ollama.com/download</a></span>`,
+    'aucun-modele': `<strong>Aucun modèle installé.</strong> <span>Installez-en un en un clic dans l'onglet <a href="#" onclick="switchTab('models'); return false;">Modèles</a>.</span>`,
+  };
+  const banner = document.createElement('div');
+  banner.id = 'cors-banner';
+  banner.className = 'bandeau';
+  banner.innerHTML = textes[cas] + ` <button class="btn ghost small" onclick="hideCorsBanner()" aria-label="Fermer">×</button>`;
+  document.body.insertBefore(banner, document.querySelector('main'));
+}
+function hideCorsBanner() { document.getElementById('cors-banner')?.remove(); }
+
+async function chargerModelesOR() {
+  try {
+    const r = await fetch('https://openrouter.ai/api/v1/models');
+    const j = await r.json();
+    const gratuits = (j.data || []).filter(m => m.id.endsWith(':free'))
+      .map(m => ({ id: m.id, label: (m.name || m.id).replace(/\s*\(free\)\s*$/i, '') }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+    modelesOR = gratuits.length ? gratuits : OR_SECOURS;
+  } catch {
+    modelesOR = OR_SECOURS;
+  }
+  return modelesOR;
+}
+
+function populateModelSelect(localModels) {
+  const sel = document.getElementById('model-select');
+  const avant = sel.value || settings.lastModel;
+  sel.innerHTML = '';
+  const ajouterLocaux = () => {
+    if (!localModels.length) return;
+    const g = document.createElement('optgroup'); g.label = 'Sur cet ordinateur — recommandé';
+    // Les modèles du catalogue d'abord, dans l'ordre conseillé ; les autres ensuite.
+    const ordre = m => { const i = CATALOGUE.findIndex(c => c.id === m || c.id === m.replace(/:latest$/, '')); return i < 0 ? 99 : i; };
+    [...localModels].sort((a, b) => ordre(a) - ordre(b)).forEach(m => {
+      const o = document.createElement('option'); o.value = 'local::' + m;
+      const c = CATALOGUE.find(x => x.id === m);
+      o.textContent = c ? `${c.nom}` : m;
+      g.appendChild(o);
+    });
+    sel.appendChild(g);
+  };
+  const ajouterOR = () => {
+    if (!settings.openrouterKey) return;
+    const g = document.createElement('optgroup'); g.label = 'Cloud OpenRouter — les textes sortent de l\'ordinateur';
+    (modelesOR || OR_SECOURS).forEach(m => {
+      const o = document.createElement('option'); o.value = 'or::' + m.id; o.textContent = m.label + ' (cloud)';
+      g.appendChild(o);
+    });
+    sel.appendChild(g);
+  };
+  if (settings.preferOR) { ajouterOR(); ajouterLocaux(); } else { ajouterLocaux(); ajouterOR(); }
+  if (!sel.options.length) {
+    const o = document.createElement('option'); o.value = ''; o.textContent = '— Aucun modèle : voir l\'onglet Modèles —';
+    sel.appendChild(o);
+  }
+  if (avant && [...sel.options].some(o => o.value === avant)) sel.value = avant;
+  majIndicateur();
+}
+
+function majIndicateur() {
+  const v = document.getElementById('model-select').value;
+  const ind = document.getElementById('mode-indicator');
+  if (v.startsWith('or::')) { ind.className = 'badge cloud'; ind.textContent = 'Cloud'; ind.title = 'Les textes partent chez OpenRouter'; }
+  else { ind.className = 'badge local'; ind.textContent = 'Local'; ind.title = 'Rien ne sort de cet ordinateur'; }
+  if (v) { settings.lastModel = v; saveSettings(); }
+}
+
+async function capacitesDe(modele) {
+  if (capacites[modele]) return capacites[modele];
+  try {
+    const r = await fetch(settings.ollamaUrl + '/api/show', { method: 'POST', body: JSON.stringify({ model: modele, name: modele }) });
+    const j = await r.json();
+    capacites[modele] = j.capabilities || [];
+  } catch { capacites[modele] = []; }
+  return capacites[modele];
+}
+
+/* ============================================================
+   ANONYMISATION
+   Remplace prénoms et noms par « Élève A, B… » AVANT l'envoi au modèle,
+   sur toute la conversation (l'historique compris : en 1.1, seul le
+   dernier message était anonymisé, les précédents partaient en clair).
+   Les tests de tests/anonymisation.test.mjs fixent le comportement.
+============================================================ */
+const PRENOMS = new Set(`
+Adam Adèle Adrien Agathe Agnès Ahmed Aïcha Aimé Alain Albane Albert Alexandra Alexandre Alexis Alice Alicia Aline Alix Aliyah Alizée Allan Alma Amandine Amaury Ambre Amel Amélie Amine Amir Amina Anaëlle Anaïs Anatole André Andréa Ange Angèle Angélique Angelo Anna Annabelle Anne Annie Anthony Antoine Antonin Apolline Arnaud Arsène Arthur Astrid Aubin Audrey Augustin Aurélie Aurélien Aurore Ava Axel Axelle Aya Ayan Ayden Aylan Aymeric Bastien Baptiste Basile Béatrice Benjamin Benoît Bérénice Bernard Bertrand Bilal Blanche Blandine Brigitte Bruno Camélia Camille Capucine Carla Carole Caroline Cassandra Céleste Célia Céline Chantal Charles Charlie Charline Charlotte Chiara Chloé Christelle Christian Christine Christophe Claire Clara Claude Clémence Clément Cléo Cléa Clotilde Colette Colin Constance Corentin Côme Cyril Cyrille Damien Daniel Daniela Daphné David Delphine Denis Diane Dimitri Djibril Dominique Dorian Dylan Eden Édouard Elena Éléa Éléna Éléonore Eliane Élias Élie Élina Éline Élisa Élisabeth Élise Ella Elliot Eliott Élodie Éloi Éloïse Elsa Émeline Émile Émilie Émilien Émily Emma Emmanuel Emmanuelle Emmy Enzo Éric Erwan Esteban Estelle Esther Ethan Étienne Eugène Eugénie Eva Évan Ève Ezio Fabien Fabienne Fabrice Fanny Farah Fatima Fatou Félix Ferdinand Fleur Florence Florent Florian Francis Franck François Françoise Frédéric Frédérique Gabin Gabriel Gabrielle Gaël Gaëlle Gaëtan Garance Gaspard Gauthier Geneviève Georges Gérald Gérard Ghislain Gilbert Gilles Giulia Grégoire Grégory Guillaume Gustave Guy Hamza Hanna Hannah Hélène Héloïse Henri Hortense Hugo Hugues Ibrahim Idris Ilan Ilyes Imane Inaya Inès Irène Iris Isaac Isabelle Ismaël Issa Jacqueline Jacques Jade Jamel Jasmine Jean Jeanne Jennifer Jérémie Jérémy Jérôme Jessica Joachim Joël Joëlle Johan Jonathan Jordan Joseph Joséphine Josette Josiane Josué Jules Julia Julian Julie Julien Juliette Justin Justine Kaïs Karim Karima Karine Kelly Kenzo Kevin Kévin Khadija Killian Kylian Lana Laetitia Lalie Lazare Léa Léana Léandre Léane Léna Léo Léon Léonard Léonie Léonore Léopold Liam Lila Lilou Lily Lina Lisa Lise Livia Loane Loïc Loïs Lola Lorenzo Lou Louane Louis Louisa Louise Louison Luc Luca Lucas Lucie Lucien Lucille Ludovic Lukas Lya Lyana Lyna Madeleine Maël Maëlle Maëlys Maëva Magali Mahaut Maïa Maïlys Malik Malo Manon Manuel Marc Marceau Marcel Margaux Margot Marguerite Maria Mariam Marianne Marie Marin Marine Mario Marion Marius Marthe Martin Martine Maryam Mathéo Mathias Mathieu Mathilde Mathis Mattéo Matteo Maud Maureen Maurice Max Maxence Maxime Maya Mehdi Mélanie Mélina Mélissa Mélodie Mia Michaël Michel Michèle Mickaël Milan Milo Mila Mohamed Mohammed Monique Morgane Moussa Muriel Murielle Mya Nadia Nadine Naël Naïa Naïm Naomi Nassim Natacha Nathalie Nathan Naya Nicolas Nicole Nina Ninon Noa Noah Noam Noé Noël Noémie Nolan Nora Norah Nour Océane Octave Odette Olivia Olivier Ophélie Oscar Owen Pascal Pascale Patrice Patricia Patrick Paul Paula Pauline Philippe Pierre Quentin Rachel Rafael Raphaël Raphaëlle Rayan Rémi Rémy Renaud René Richard Robert Robin Rodrigue Romain Romane Romy Rose Roxane Ruben Sabine Sabrina Sacha Salma Salomé Samia Samir Samuel Samy Sandra Sandrine Sara Sarah Sasha Sébastien Selim Serge Simon Simone Sofia Sohan Soline Solal Solène Sophia Sophie Soren Stéphane Stéphanie Suzanne Sylvain Sylvie Tess Thaïs Théa Théo Théodore Théophile Thibault Thibaut Thierry Thomas Tiago Tim Timéo Timothée Titouan Tom Tristan Valentin Valentine Valérie Vanessa Victoire Victor Victoria Vincent Violette Virginie Wassim Wendy Willy Xavier Yacine Yanis Yann Yannick Yasmine Yassine Younès Youssef Yuna Yves Yvonne Zacharie Zakaria Zélie Zoé
+`.trim().split(/\s+/));
+
+// Prénoms qui sont aussi des mots courants : masqués seulement hors début de phrase.
+const PRENOMS_AMBIGUS = new Set('Rose Ambre Jade Iris Capucine Aurore Victoire Constance Clémence Marine Fleur Blanche Violette Océane Mélodie Prune Céleste Ange Pascal Claude Max Tim Martin Lou Eden Noël Grégoire Colin Marin Ève Sacha Simone'.split(' '));
+
+// Personnes célèbres souvent citées en cours : jamais masquées.
+const PERSONNALITES = [
+  'Victor Hugo', 'Jules Verne', 'Jean de La Fontaine', 'Émile Zola', 'Louis Pasteur', 'Marie Curie', 'Pierre Curie',
+  'Simone Veil', 'Simone de Beauvoir', 'Jean Moulin', 'Jean Jaurès', 'Charles de Gaulle', 'Jeanne d\'Arc', 'Marie-Antoinette',
+  'Albert Camus', 'Jean-Paul Sartre', 'Guy de Maupassant', 'Honoré de Balzac', 'Gustave Flaubert', 'Arthur Rimbaud',
+  'Paul Verlaine', 'Charles Baudelaire', 'Jean Racine', 'Pierre Corneille', 'Antoine de Saint-Exupéry', 'Marcel Pagnol',
+  'Marcel Proust', 'Alexandre Dumas', 'George Sand', 'Rose Valland', 'Claude Monet', 'Auguste Rodin', 'Paul Cézanne',
+  'Henri Matisse', 'Pablo Picasso', 'Vincent van Gogh', 'Léonard de Vinci', 'Isaac Newton', 'Albert Einstein',
+  'Blaise Pascal', 'René Descartes', 'Jean-Jacques Rousseau', 'Denis Diderot', 'Thomas Edison', 'Martin Luther King',
+  'Nelson Mandela', 'Rosa Parks', 'Christophe Colomb', 'Jacques Cartier', 'Louis Braille', 'Gustave Eiffel',
+  'Lucie Aubrac', 'Joséphine Baker', 'Olympe de Gouges', 'Louise Michel', 'Victor Schœlcher', 'Jules Ferry',
+  'Georges Clemenceau', 'Paul Éluard', 'Louis Aragon', 'Jacques Prévert', 'Boris Vian', 'Raymond Queneau',
+  'Daniel Pennac', 'Jean Giono', 'Michel Tournier', 'Marguerite Duras', 'Marguerite Yourcenar', 'Annie Ernaux',
+  'Hugo Capet', 'Ada Lovelace', 'Alan Turing', 'Frida Kahlo', 'Anne Frank', 'Martin Luther', 'Jean Monnet',
+  'Robert Schuman', 'Charles Darwin', 'Galilée', 'Théodore Monod', 'Thomas Pesquet', 'Pierre de Coubertin',
+];
+
+// Mots capitalisés qui suivent souvent un prénom sans être un nom de famille.
+const PAS_UN_NOM = new Set(`Le La Les Un Une Des Du De Et Ou Mais Donc Or Ni Car En Au Aux Il Elle Ils Elles On Je Tu Nous Vous
+Ce Cette Ces Son Sa Ses Mon Ma Mes Ton Ta Tes Leur Leurs Qui Que Quoi Dont Où Pour Par Sur Sous Dans Avec Sans Chez Vers
+Est A Ont Sont Était Avait Va Fait Dit Peut Doit Lundi Mardi Mercredi Jeudi Vendredi Samedi Dimanche Janvier Février Mars
+Avril Mai Juin Juillet Août Septembre Octobre Novembre Décembre Élève Élèves Classe Professeur Madame Monsieur Mademoiselle
+Français Anglais Maths Mathématiques Histoire Géographie Sciences Physique Chimie Musique Sport Art Arts EPS SVT CP CE1 CE2
+CM1 CM2 Merci Bonjour Bravo Oui Non Très Bien Trop Peu Plus Moins Ier Ire Ière II III IV V VI VII VIII IX X XI XII XIII XIV XV XVI XVII XVIII`.split(/\s+/));
+
+const CIVILITES = new Set(['M.', 'Mme', 'Mlle', 'Monsieur', 'Madame', 'Mademoiselle', 'Me', 'Dr', 'Pr']);
+const ROMAINS = /^(?:I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII|XIII|XIV|XV|XVI|XVII|XVIII|Ier|Ire|Ière)$/;
+
+// \b de JavaScript ignore les lettres accentuées : « Chloé » ou « Élise » n'étaient jamais
+// reconnus en 1.1. On découpe donc les mots avec les classes Unicode (\p{L}).
+const MOT = /[\p{L}\p{M}][\p{L}\p{M}'’-]*/gu;
+
+function majuscule(w) { return /^\p{Lu}/u.test(w); }
+function toutMajuscules(w) { return w.length >= 2 && w === w.toUpperCase() && /\p{L}/u.test(w); }
+function normaliser(w) { return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase(); }
+function estPrenom(w, perso) {
+  const parties = w.split('-');
+  return parties.every(p => PRENOMS.has(normaliser(p)) || perso.has(normaliser(p)));
+}
+
+function libelle(n, base) {
+  const lettres = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  return base + ' ' + (n < 26 ? lettres[n] : lettres[Math.floor(n / 26) - 1] + lettres[n % 26]);
+}
+
+/**
+ * Anonymise une liste de textes (les messages d'une conversation) avec une
+ * correspondance UNIQUE : « Chloé » reste « Élève A » d'un message à l'autre.
+ */
+function anonymiserTextes(textes, options = {}) {
+  const perso = new Set((options.prenoms || []).map(normaliser));
+  const jamais = [...PERSONNALITES, ...(options.jamais || [])].filter(Boolean)
+    .sort((a, b) => b.length - a.length);
+  const parPrenom = new Map();   // « Chloé » → label
+  const parNom = new Map();      // « MARTIN » / « Martin » → label
+  const adultes = new Set();     // noms vus après une civilité (Mme, M.…)
+  let nomsConnus = new Set();    // rempli entre les deux passes
+  const correspondances = [];    // [{ original, label }]
+  let nEleves = 0, nAdultes = 0, total = 0;
+
+  function nouveau(original, adulte) {
+    const label = adulte ? libelle(nAdultes++, 'Personne') : libelle(nEleves++, 'Élève');
+    correspondances.push({ original, label });
+    return label;
+  }
+
+  function traiter(texte) {
+    if (!texte) return texte;
+    // 1. Mettre de côté les personnalités et la liste « ne jamais masquer »
+    const proteges = [];
+    let t = texte;
+    for (const nom of jamais) {
+      const re = new RegExp('(?<![\\p{L}\\p{M}])' + nom.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\p{L}\\p{M}])', 'gu');
+      t = t.replace(re, m => { proteges.push(m); return '\u0000' + (proteges.length - 1) + '\u0000'; });
+    }
+    // 2. Découper en mots, en gardant leurs positions
+    const mots = [...t.matchAll(MOT)].map(m => ({ w: m[0], i: m.index, fin: m.index + m[0].length }));
+    const remplacements = [];  // { i, fin, label }
+    const pris = new Set();
+    const debutDePhrase = k => {
+      const avant = t.slice(0, mots[k].i).replace(/[\s"«»“”(]+$/u, '');
+      return avant === '' || /[.!?:\n]$/.test(avant);
+    };
+    const colle = (a, b) => /^[  ]+$/.test(t.slice(mots[a].fin, mots[b].i));
+
+    for (let k = 0; k < mots.length; k++) {
+      if (pris.has(k)) continue;
+      const { w } = mots[k];
+      // Civilité + nom : « Mme Martin », « M. Dupont »
+      const civ = CIVILITES.has(w) || (w === 'M' && t[mots[k].fin] === '.');
+      if (civ && k + 1 < mots.length && majuscule(mots[k + 1].w) && !PAS_UN_NOM.has(mots[k + 1].w)) {
+        const n = mots[k + 1];
+        const cle = normaliser(n.w);
+        const label = parNom.get(cle) || nouveau(n.w, true);
+        parNom.set(cle, label); adultes.add(cle);
+        remplacements.push({ i: n.i, fin: n.fin, label }); pris.add(k + 1); total++;
+        continue;
+      }
+      if (!majuscule(w) && !toutMajuscules(w)) continue;
+      if (PAS_UN_NOM.has(w)) continue;
+
+      // Nom de famille connu de la conversation, employé seul : « Martin a progressé »
+      // (testé avant les prénoms : Martin, Thomas… sont aussi des prénoms).
+      const cleSeul = normaliser(w);
+      const suiviDUnNom = k + 1 < mots.length && colle(k, k + 1) && majuscule(mots[k + 1].w) && !PAS_UN_NOM.has(mots[k + 1].w);
+      if ((parNom.has(cleSeul) || nomsConnus.has(cleSeul)) && !suiviDUnNom && !parPrenom.has(cleSeul)) {
+        let label = parNom.get(cleSeul);
+        if (!label) { label = nouveau(w, adultes.has(cleSeul)); parNom.set(cleSeul, label); }
+        remplacements.push({ i: mots[k].i, fin: mots[k].fin, label }); total++;
+        continue;
+      }
+      const prenom = estPrenom(w, perso) && !toutMajuscules(w);
+      if (prenom) {
+        if (PRENOMS_AMBIGUS.has(normaliser(w)) && !perso.has(normaliser(w)) && debutDePhrase(k)) continue;
+        // Louis XIV, Henri IV, François Ier : un souverain, pas un élève
+        if (k + 1 < mots.length && colle(k, k + 1) && ROMAINS.test(mots[k + 1].w)) { k++; continue; }
+        let debut = mots[k].i, fin = mots[k].fin, nom = null;
+        // Nom de famille juste après : « Léa Martin ». Le mot suivant compte comme nom même
+        // s'il est aussi un prénom (Martin, Thomas, Bernard sont des noms de famille courants).
+        if (k + 1 < mots.length && colle(k, k + 1) && majuscule(mots[k + 1].w) &&
+            !PAS_UN_NOM.has(mots[k + 1].w) && !ROMAINS.test(mots[k + 1].w)) {
+          nom = mots[k + 1].w; fin = mots[k + 1].fin; pris.add(k + 1);
+        }
+        // … ou juste avant, en capitales : « MARTIN Léa »
+        if (!nom && k > 0 && !pris.has(k - 1) && colle(k - 1, k) && toutMajuscules(mots[k - 1].w) &&
+            !PAS_UN_NOM.has(mots[k - 1].w)) {
+          nom = mots[k - 1].w; debut = mots[k - 1].i;
+          const r = remplacements.findIndex(x => x.i === mots[k - 1].i);
+          if (r >= 0) remplacements.splice(r, 1);
+        }
+        const cleP = normaliser(w);
+        let label = (nom && parNom.get(normaliser(nom))) || parPrenom.get(cleP);
+        if (!label) label = nouveau(nom ? `${w} ${nom}` : w, false);
+        if (!parPrenom.has(cleP)) parPrenom.set(cleP, label);
+        if (nom) parNom.set(normaliser(nom), label);
+        remplacements.push({ i: debut, fin, label }); total++;
+        continue;
+      }
+      // Nom de famille rencontré ailleurs dans la conversation : « Martin a progressé »
+      const cleN = normaliser(w);
+      if ((parNom.has(cleN) || nomsConnus.has(cleN)) && !(PRENOMS_AMBIGUS.has(cleN) && debutDePhrase(k))) {
+        let label = parNom.get(cleN);
+        if (!label) { label = nouveau(w, adultes.has(cleN)); parNom.set(cleN, label); }
+        remplacements.push({ i: mots[k].i, fin: mots[k].fin, label }); total++;
+      }
+    }
+    remplacements.sort((a, b) => b.i - a.i);
+    for (const r of remplacements) t = t.slice(0, r.i) + r.label + t.slice(r.fin);
+    return t.replace(/\u0000(\d+)\u0000/g, (_, n) => proteges[+n]);
+  }
+
+  // Deux passes : la première ne fait qu'apprendre les noms de famille (« Léa Martin »),
+  // pour que « Martin » seul soit masqué même s'il apparaît AVANT le nom complet.
+  textes.forEach(traiter);
+  nomsConnus = new Set(parNom.keys());
+  parPrenom.clear(); parNom.clear(); correspondances.length = 0; nEleves = 0; nAdultes = 0; total = 0;
+  const resultat = textes.map(traiter);
+  return { textes: resultat, correspondances: [...correspondances], total };
+}
+
+/** Rétablit les vrais noms dans une réponse, pour l'affichage local seulement. */
+function reidentifier(texte, correspondances) {
+  if (!texte || !correspondances || !correspondances.length) return texte;
+  const tri = [...correspondances].sort((a, b) => b.label.length - a.label.length);
+  let t = texte;
+  for (const { label, original } of tri) {
+    t = t.replace(new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\p{L}])', 'gu'), original);
+  }
+  return t;
+}
+
+/* ============================================================
+   CONVERSATIONS
+============================================================ */
+function getActiveConv() { return conversations.find(c => c.id === activeId); }
+function newConversation() {
+  const id = Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+  conversations.unshift({ id, title: 'Nouvelle conversation', messages: [], created: Date.now() });
+  activeId = id;
+  localStorage.setItem(LS.active, id);
+  saveConversations(); renderConvList(); renderMessages();
+  document.getElementById('prompt-input')?.focus();
+}
+function deleteConversation(id) {
+  if (!confirm('Supprimer cette conversation ?')) return;
+  conversations = conversations.filter(c => c.id !== id);
+  if (activeId === id) activeId = conversations[0]?.id || null;
+  saveConversations(); renderConvList(); renderMessages();
+}
+function renommerConversation(id) {
+  const c = conversations.find(x => x.id === id); if (!c) return;
+  const t = prompt('Nouveau titre de la conversation :', c.title);
+  if (t && t.trim()) { c.title = t.trim().slice(0, 80); saveConversations(); renderConvList(); }
+}
+function renderConvList() {
+  const wrap = document.getElementById('conv-items');
+  const q = (document.getElementById('conv-search')?.value || '').trim().toLowerCase();
+  wrap.innerHTML = '';
+  const liste = conversations.filter(c => !q || c.title.toLowerCase().includes(q) ||
+    c.messages.some(m => (m.content || '').toLowerCase().includes(q)));
+  if (!liste.length && q) { wrap.innerHTML = '<p class="vide">Aucun résultat</p>'; return; }
+  liste.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'conv-item' + (c.id === activeId ? ' active' : '');
+    el.innerHTML = `<span class="titre">${escapeHtml(c.title)}</span>
+      <span class="ren" title="Renommer">✎</span><span class="del" title="Supprimer">×</span>`;
+    el.addEventListener('click', e => {
+      if (e.target.classList.contains('del')) { deleteConversation(c.id); return; }
+      if (e.target.classList.contains('ren')) { renommerConversation(c.id); return; }
+      activeId = c.id; localStorage.setItem(LS.active, c.id);
+      renderConvList(); renderMessages();
+    });
+    el.addEventListener('dblclick', () => renommerConversation(c.id));
+    wrap.appendChild(el);
+  });
+}
+
+/* ============================================================
+   AFFICHAGE DES MESSAGES
+============================================================ */
+function texteAffiche(conv, m) {
+  if (m.role === 'assistant' && settings.reidentify && conv.anonMap) return reidentifier(m.content, conv.anonMap);
+  return m.content;
+}
+
+function renderMessages() {
+  const wrap = document.getElementById('messages');
+  wrap.innerHTML = '';
+  const conv = getActiveConv();
+  if (!conv || !conv.messages.length) {
+    wrap.innerHTML = `<div class="accueil-chat">
+      <p class="salut">👋</p>
+      <p>Posez votre question, glissez un fichier ou une photo, ou partez d'un modèle de la
+        <a href="#" onclick="switchTab('prompts'); return false;">bibliothèque</a>.</p>
+      <div class="exemples">${EXEMPLES.map((e, i) => `<button class="exemple" data-i="${i}">${escapeHtml(e)}</button>`).join('')}</div>
+      <p class="discret">${document.getElementById('model-select').value.startsWith('or::')
+        ? '⚠️ Mode cloud : vos textes partent chez OpenRouter.'
+        : '🔒 Mode local : rien ne sort de cet ordinateur.'}</p>
+    </div>`;
+    wrap.querySelectorAll('.exemple').forEach(b => b.addEventListener('click', () => {
+      const ta = document.getElementById('prompt-input'); ta.value = EXEMPLES[+b.dataset.i]; ajusterSaisie(); ta.focus();
+    }));
+    return;
+  }
+  const dernierAssistant = conv.messages.map(m => m.role).lastIndexOf('assistant');
+  conv.messages.forEach((m, i) => {
+    const div = document.createElement('div');
+    div.className = 'message ' + m.role;
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    if (m.role === 'assistant') {
+      bubble.innerHTML = renderMarkdown(texteAffiche(conv, m)) || '';
+      if (!m.content && isStreaming && i === conv.messages.length - 1) bubble.classList.add('thinking');
+      const wrapper = document.createElement('div');
+      wrapper.className = 'reponse';
+      wrapper.appendChild(bubble);
+      if (m.content && !(isStreaming && i === conv.messages.length - 1)) {
+        const actions = document.createElement('div');
+        actions.className = 'msg-actions';
+        actions.innerHTML = `
+          <button data-act="copy" title="Copier le texte">⧉ Copier</button>
+          ${i === dernierAssistant ? '<button data-act="regen" title="Nouvelle réponse à la même question">↻ Régénérer</button>' : ''}
+          <button data-act="print" title="Imprimer ou enregistrer en PDF">🖨 Imprimer</button>
+          <button data-act="doc" title="Ouvrir dans Word">⤓ Word</button>
+          <button data-act="md" title="Fichier Markdown">⤓ .md</button>`;
+        actions.querySelectorAll('button').forEach(b =>
+          b.addEventListener('click', () => handleMsgAction(b.dataset.act, texteAffiche(conv, m), i)));
+        wrapper.appendChild(actions);
+        if (m.interrompu) {
+          const n = document.createElement('div'); n.className = 'note-msg'; n.textContent = '⏹ Génération arrêtée.'; wrapper.appendChild(n);
+        }
+        if (conv.anonMap && conv.anonMap.length && settings.reidentify) {
+          const n = document.createElement('div'); n.className = 'note-msg';
+          n.textContent = '🔒 Le modèle n\'a vu que ' + conv.anonMap.map(c => c.label).slice(0, 4).join(', ') +
+            (conv.anonMap.length > 4 ? '…' : '') + ' — les vrais noms sont rétablis ici, sur votre écran seulement.';
+          wrapper.appendChild(n);
+        }
+        if (settings.showDisclaimer) {
+          const n = document.createElement('div'); n.className = 'note-msg';
+          n.textContent = '⚠️ Production IA : à relire et vérifier avant tout usage.';
+          wrapper.appendChild(n);
+        }
+        if (i === dernierAssistant && i === conv.messages.length - 1) {
+          const s = document.createElement('div'); s.className = 'suites';
+          s.innerHTML = SUITES.map((x, k) => `<button data-k="${k}">${x.label}</button>`).join('');
+          s.querySelectorAll('button').forEach(b => b.addEventListener('click', () => sendMessage(SUITES[+b.dataset.k].texte)));
+          wrapper.appendChild(s);
+        }
+      }
+      div.appendChild(wrapper);
+    } else {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'question';
+      if (m.images && m.images.length) {
+        const g = document.createElement('div'); g.className = 'vignettes';
+        m.images.forEach(b64 => { const im = document.createElement('img'); im.src = 'data:image/jpeg;base64,' + b64; im.alt = 'image jointe'; g.appendChild(im); });
+        wrapper.appendChild(g);
+      }
+      bubble.textContent = m.content;
+      wrapper.appendChild(bubble);
+      div.appendChild(wrapper);
+    }
+    wrap.appendChild(div);
+  });
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function handleMsgAction(act, content, idx) {
+  if (act === 'copy') {
+    navigator.clipboard.writeText(content).then(() => flash('Copié'), () => flash('Copie impossible'));
+  } else if (act === 'regen') {
+    regenerer();
+  } else if (act === 'md') {
+    downloadFile('reponse-' + (idx + 1) + '.md', content, 'text/markdown');
+  } else if (act === 'doc') {
+    const html = `<html><head><meta charset="utf-8"></head><body style="font-family:Calibri,Arial,sans-serif">${renderMarkdown(content)}</body></html>`;
+    downloadFile('reponse-' + (idx + 1) + '.doc', html, 'application/msword');
+  } else if (act === 'print') {
+    imprimer(renderMarkdown(content));
+  }
+}
+
+function imprimer(html) {
+  const f = document.createElement('iframe');
+  f.style.cssText = 'position:fixed; width:0; height:0; border:0';
+  f.srcdoc = `<!doctype html><html><head><meta charset="utf-8"><title>IA Locale</title>
+    <style>body{font-family:Georgia,serif;line-height:1.5;max-width:720px;margin:24px auto;color:#111}
+    table{border-collapse:collapse}th,td{border:1px solid #999;padding:4px 8px}pre{white-space:pre-wrap}</style>
+    </head><body>${html}</body></html>`;
+  f.onload = () => { f.contentWindow.print(); setTimeout(() => f.remove(), 1000); };
+  document.body.appendChild(f);
+}
+
+function downloadFile(name, content, mime) {
+  const blob = new Blob([content], { type: mime + ';charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+function flash(msg, duree = 1800) {
+  const el = document.createElement('div');
+  el.className = 'flash';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), duree);
+}
+
+function escapeHtml(s) {
+  return (s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// Mise en forme dans une ligne : code, gras, italique (texte déjà échappé).
+function enLigne(t) {
+  return t.replace(/`([^`\n]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*\n]+)\*([^*]|$)/g, '$1<em>$2</em>$3');
+}
+
+/* Rendu Markdown maison, sans dépendance. Le texte est échappé AVANT toute
+   transformation : une réponse du modèle ne peut pas injecter de HTML. */
+function renderMarkdown(text) {
+  if (!text) return '';
+  let s = escapeHtml(text);
+  const blocs = [];
+  s = s.replace(/```[^\n]*\n?([\s\S]*?)```/g, (m, c) => { blocs.push(`<pre><code>${c}</code></pre>`); return `\u0000B${blocs.length - 1}\u0000`; });
+  // Tableaux : lignes « | a | b | » avec une ligne de séparation « |---|---| »
+  s = s.replace(/((?:^\|.*\|[ \t]*\n?)+)/gm, bloc => {
+    const lignes = bloc.trim().split('\n').map(l => l.trim());
+    if (lignes.length < 2 || !/^\|[\s:|-]+\|$/.test(lignes[1])) return bloc;
+    const cell = l => l.replace(/^\||\|$/g, '').split('|').map(c => enLigne(c.trim()));
+    const tete = cell(lignes[0]).map(c => `<th>${c}</th>`).join('');
+    const corps = lignes.slice(2).map(l => '<tr>' + cell(l).map(c => `<td>${c}</td>`).join('') + '</tr>').join('');
+    blocs.push(`<div class="tableau"><table><thead><tr>${tete}</tr></thead><tbody>${corps}</tbody></table></div>`);
+    return `\u0000B${blocs.length - 1}\u0000\n`;
+  });
+  // Formules LaTeX ($$…$$, \[…\], \(…\)) : sans moteur de rendu hors ligne, on retire les
+  // délimiteurs et les commandes les plus courantes pour qu'elles restent lisibles.
+  const formule = f => '<span class="math">' + f.trim()
+    .replace(/\\(?:times|cdot)/g, '×').replace(/\\div/g, '÷').replace(/\\(?:leq|le)\b/g, '≤').replace(/\\(?:geq|ge)\b/g, '≥')
+    .replace(/\\neq/g, '≠').replace(/\\approx/g, '≈').replace(/\\pi/g, 'π').replace(/\\sqrt\{([^}]*)\}/g, '√($1)')
+    .replace(/\\frac\{([^}]*)\}\{([^}]*)\}/g, (m, a, b) => [a, b].map(x => /^[\w.,]+$/.test(x) ? x : '(' + x + ')').join('/'))
+    .replace(/\^\{?2\}?(?![\d])/g, '²').replace(/\^\{?3\}?(?![\d])/g, '³').replace(/\\(?:text|mathrm)\{([^}]*)\}/g, '$1')
+    .replace(/\\[,;! ]/g, ' ').replace(/[{}]/g, '') + '</span>';
+  s = s.replace(/\$\$([\s\S]+?)\$\$/g, (m, f) => formule(f));
+  s = s.replace(/\\\[([\s\S]+?)\\\]/g, (m, f) => formule(f));
+  s = s.replace(/\\\(([\s\S]+?)\\\)/g, (m, f) => formule(f));
+  s = s.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  s = s.replace(/^#### (.*)$/gm, '<h4>$1</h4>');
+  s = s.replace(/^### (.*)$/gm, '<h3>$1</h3>');
+  s = s.replace(/^## (.*)$/gm, '<h2>$1</h2>');
+  s = s.replace(/^# (.*)$/gm, '<h1>$1</h1>');
+  s = s.replace(/^---+$/gm, '<hr>');
+  s = s.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/(^|[^*])\*([^*\n]+)\*([^*]|$)/g, '$1<em>$2</em>$3');
+  s = s.replace(/^\s*(?:- |\* |• )(.+)$/gm, '<li>$1</li>');
+  s = s.replace(/(<li>.*<\/li>(?:\n<li>.*<\/li>)*)/g, m => '<ul>' + m.replace(/\n/g, '') + '</ul>');
+  s = s.replace(/^\s*\d+[.)] (.+)$/gm, '<oli>$1</oli>');
+  s = s.replace(/(<oli>.*<\/oli>(?:\n<oli>.*<\/oli>)*)/g, m => '<ol>' + m.replace(/<oli>/g, '<li>').replace(/<\/oli>/g, '</li>').replace(/\n/g, '') + '</ol>');
+  s = s.split(/\n{2,}/).map(p => {
+    const t = p.trim();
+    if (!t) return '';
+    if (/^(<(h\d|ul|ol|pre|hr|div)|\u0000B)/.test(t)) return t.replace(/\n/g, '');
+    return '<p>' + t.replace(/\n/g, '<br>') + '</p>';
+  }).join('');
+  return s.replace(/\u0000B(\d+)\u0000/g, (_, n) => blocs[+n]);
+}
+
+/* ============================================================
+   ENVOI, GÉNÉRATION, ARRÊT
+============================================================ */
+async function sendMessage(texteImpose) {
+  if (isStreaming) return;
+  const input = document.getElementById('prompt-input');
+  let text = (typeof texteImpose === 'string' ? texteImpose : input.value).trim();
+  if (!text && !attachedFiles.length && !attachedImages.length) return;
+
+  // Le modèle est vérifié AVANT d'enregistrer le message (en 1.1, le message restait orphelin).
+  const modelVal = document.getElementById('model-select').value;
+  if (!modelVal) { flash('Choisissez d\'abord un modèle (onglet Modèles)', 3000); return; }
+  const [backend, model] = modelVal.split('::');
+
+  if (attachedImages.length) {
+    if (backend !== 'local') { flash('Les images ne sont envoyées qu\'aux modèles locaux.', 3500); return; }
+    const caps = await capacitesDe(model);
+    if (!caps.includes('vision')) {
+      flash('Ce modèle ne lit pas les images. Choisissez Ministral 3, Qwen 3.5 ou Gemma 4 (onglet Modèles).', 5000);
+      return;
+    }
+  }
+  if (attachedFiles.length) {
+    const fileTxt = attachedFiles.map(f => `--- Fichier joint : ${f.name} ---\n${f.text}\n--- Fin du fichier ---`).join('\n\n');
+    text = fileTxt + (text ? '\n\n' + text : '');
+  }
+  if (!text) text = 'Décris cette image.';
+
+  if (!activeId || !getActiveConv()) newConversation();
+  const conv = getActiveConv();
+  const message = { role: 'user', content: text };
+  if (attachedImages.length) message.images = attachedImages.map(i => i.base64);
+  conv.messages.push(message);
+  if (conv.title === 'Nouvelle conversation') {
+    const titre = (typeof texteImpose === 'string' ? '' : input.value.trim()) || attachedFiles[0]?.name || attachedImages[0]?.name || text;
+    conv.title = titre.slice(0, 48) + (titre.length > 48 ? '…' : '');
+  }
+  if (typeof texteImpose !== 'string') input.value = '';
+  ajusterSaisie();
+  attachedFiles = []; attachedImages = []; renderAttached();
+  renderConvList();
+  await generer(conv, backend, model);
+}
+
+async function regenerer() {
+  if (isStreaming) return;
+  const conv = getActiveConv(); if (!conv) return;
+  if (conv.messages.at(-1)?.role === 'assistant') conv.messages.pop();
+  const modelVal = document.getElementById('model-select').value;
+  if (!modelVal) { flash('Choisissez un modèle'); return; }
+  const [backend, model] = modelVal.split('::');
+  await generer(conv, backend, model);
+}
+
+async function generer(conv, backend, model) {
+  // Toute la conversation est anonymisée d'un seul tenant, avec une seule table de
+  // correspondance. En 1.1, l'historique repartait en clair au deuxième message.
+  let contenus = conv.messages.map(m => m.content);
+  conv.anonMap = null;
+  if (settings.anon) {
+    const r = anonymiserTextes(contenus, {
+      prenoms: (settings.customNames || '').split(/[\n,]/).map(s => s.trim()).filter(Boolean),
+      jamais: (settings.keepNames || '').split(/[\n,]/).map(s => s.trim()).filter(Boolean),
+    });
+    contenus = r.textes;
+    conv.anonMap = r.correspondances;
+    if (r.correspondances.length) {
+      flash('Anonymisé : ' + r.correspondances.slice(0, 3).map(c => `${c.original} → ${c.label}`).join(', ') +
+        (r.correspondances.length > 3 ? '…' : ''), 3500);
+    }
+  }
+  const msgs = [
+    { role: 'system', content: settings.systemPrompt },
+    ...conv.messages.map((m, i) => {
+      const x = { role: m.role, content: contenus[i] };
+      if (backend === 'local' && m.images) x.images = m.images;
+      return x;
+    }),
+  ];
+
+  conv.messages.push({ role: 'assistant', content: '', model });
+  const reponse = conv.messages.at(-1);
+  isStreaming = true;
+  majBoutonEnvoi();
+  renderMessages();
+  saveConversations();
+  const wrap = document.getElementById('messages');
+  const bulle = () => wrap.querySelector('.message.assistant:last-child .bubble');
+  controleur = new AbortController();
+  const surMorceau = c => {
+    reponse.content += c;
+    const b = bulle();
+    if (b) { b.classList.remove('thinking'); b.innerHTML = renderMarkdown(texteAffiche(conv, reponse)); }
+    if (wrap.scrollHeight - wrap.scrollTop - wrap.clientHeight < 160) wrap.scrollTop = wrap.scrollHeight;
+  };
+  try {
+    if (backend === 'local') await streamOllama(model, msgs, surMorceau, controleur.signal);
+    else await streamOpenRouter(model, msgs, surMorceau, controleur.signal);
+    if (!reponse.content) reponse.content = '(Le modèle n\'a rien répondu. Réessayez, ou choisissez un autre modèle.)';
+  } catch (e) {
+    if (e.name === 'AbortError') reponse.interrompu = true;
+    else reponse.content += (reponse.content ? '\n\n' : '') + '❌ ' + messageErreur(e);
+    if (!reponse.content) reponse.content = '(Génération arrêtée avant le début de la réponse.)';
+  } finally {
+    isStreaming = false;
+    controleur = null;
+    majBoutonEnvoi();
+    saveConversations();
+    renderMessages();
+  }
+}
+
+function messageErreur(e) {
+  const m = String(e.message || e);
+  if (/Failed to fetch|NetworkError|Load failed/i.test(m)) return 'Le moteur Ollama ne répond plus. Vérifiez qu\'il est lancé, puis réessayez.';
+  if (/model .* not found/i.test(m)) return 'Ce modèle n\'est plus installé. Choisissez-en un autre dans la liste.';
+  return 'Erreur : ' + m;
+}
+
+function arreter() { controleur?.abort(); }
+
+function majBoutonEnvoi() {
+  const b = document.getElementById('send-btn');
+  b.textContent = isStreaming ? '■ Arrêter' : 'Envoyer';
+  b.classList.toggle('danger', isStreaming);
+  b.title = isStreaming ? 'Arrêter la génération (Échap)' : 'Envoyer (Entrée)';
+}
+
+async function streamOllama(model, messages, onChunk, signal) {
+  const r = await fetch(settings.ollamaUrl + '/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, messages, stream: true }),
+    signal,
+  });
+  if (!r.ok) {
+    let detail = ''; try { detail = (await r.json()).error || ''; } catch {}
+    throw new Error(detail || 'Ollama HTTP ' + r.status);
+  }
+  const reader = r.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    const lines = buf.split('\n'); buf = lines.pop();
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      let j; try { j = JSON.parse(line); } catch { continue; }
+      if (j.error) throw new Error(j.error);
+      const c = j.message?.content || '';
+      if (c) onChunk(c);
+    }
+  }
+}
+
+async function streamOpenRouter(model, messages, onChunk, signal) {
+  if (!settings.openrouterKey) throw new Error('Clé OpenRouter manquante (Réglages)');
+  const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + settings.openrouterKey,
+      'HTTP-Referer': 'https://ia-magique.com/app-IA-locale/',
+      'X-Title': 'IA Locale',
+    },
+    body: JSON.stringify({ model, messages: messages.map(m => ({ role: m.role, content: m.content })), stream: true }),
+    signal,
+  });
+  if (!r.ok) throw new Error('OpenRouter HTTP ' + r.status + ' — ' + (await r.text()).slice(0, 200));
+  const reader = r.body.getReader();
+  const dec = new TextDecoder();
+  let buf = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    const lines = buf.split('\n'); buf = lines.pop();
+    for (const line of lines) {
+      const l = line.trim();
+      if (!l.startsWith('data:')) continue;
+      const payload = l.slice(5).trim();
+      if (payload === '[DONE]') return;
+      try {
+        const c = JSON.parse(payload).choices?.[0]?.delta?.content || '';
+        if (c) onChunk(c);
+      } catch {}
+    }
+  }
+}
+
+/* ============================================================
+   FICHIERS ET IMAGES
+============================================================ */
+function renderAttached() {
+  const wrap = document.getElementById('attached-files');
+  wrap.innerHTML = '';
+  attachedImages.forEach((im, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'file-chip image';
+    chip.innerHTML = `<img src="${im.apercu}" alt=""> ${escapeHtml(im.name)} <span class="x" title="Retirer">×</span>`;
+    chip.querySelector('.x').addEventListener('click', () => { attachedImages.splice(i, 1); renderAttached(); });
+    wrap.appendChild(chip);
+  });
+  attachedFiles.forEach((f, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'file-chip';
+    chip.innerHTML = `📄 ${escapeHtml(f.name)} <small>${Math.round(f.text.length / 1000) || '<1'} k car.</small> <span class="x" title="Retirer">×</span>`;
+    chip.querySelector('.x').addEventListener('click', () => { attachedFiles.splice(i, 1); renderAttached(); });
+    wrap.appendChild(chip);
+  });
+}
+
+async function ajouterFichiers(liste) {
+  for (const f of liste) {
+    try {
+      if (/^image\//.test(f.type) || /\.(png|jpe?g|webp|gif)$/i.test(f.name)) {
+        attachedImages.push(await lireImage(f));
+      } else {
+        const text = await readFile(f);
+        if (!text.trim()) { flash(`${f.name} : aucun texte trouvé (PDF scanné ? Joignez plutôt une photo des pages).`, 5000); continue; }
+        attachedFiles.push({ name: f.name, text });
+      }
+    } catch (e) {
+      console.error(e);
+      flash('Lecture impossible : ' + f.name, 3000);
+    }
+  }
+  renderAttached();
+}
+
+// Les photos sont réduites (1280 px, JPEG) : plus rapides à analyser, et la mémoire du
+// navigateur, qui garde les conversations, ne tient que quelques Mo.
+function lireImage(f) {
+  return new Promise((ok, ko) => {
+    const url = URL.createObjectURL(f);
+    const img = new Image();
+    img.onload = () => {
+      const max = 1280, k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      const data = c.toDataURL('image/jpeg', 0.82);
+      URL.revokeObjectURL(url);
+      ok({ name: f.name || 'image collée', base64: data.split(',')[1], apercu: data });
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); ko(new Error('image illisible')); };
+    img.src = url;
+  });
+}
+
+async function readFile(file) {
+  if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) return await extractPdfText(file);
+  return await file.text();
+}
+
+async function extractPdfText(file) {
+  // pdf.js est livré avec l'application (lib/) : aucune requête vers Internet.
+  if (!window.pdfjsLib) {
+    await loadScript('lib/pdf.min.js');
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdf.worker.min.js';
+  }
+  const pdf = await window.pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+  let text = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const content = await (await pdf.getPage(i)).getTextContent();
+    text += content.items.map(it => it.str).join(' ') + '\n\n';
+  }
+  return text.trim();
+}
+
+function loadScript(src) {
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = res; s.onerror = () => rej(new Error('Échec chargement ' + src));
+    document.head.appendChild(s);
+  });
+}
+
+/* ============================================================
+   PROMPTS PÉDAGOGIQUES
+============================================================ */
+const PROMPTS = [
+  { cat: 'Préparation', title: 'Construire une séquence complète',
+    prompt: "Propose-moi une séquence de 4 séances de 1h sur le thème [THÈME] pour des élèves de [NIVEAU/FILIÈRE]. Pour chaque séance : objectif d'apprentissage, déroulé minute par minute, supports, activité élève, modalités d'évaluation. Format tableau si possible."
+  },
+  { cat: 'Préparation', title: 'Plan de séance d\'1h',
+    prompt: "Propose-moi un plan de séance d'1h sur [SUJET] pour des élèves de [NIVEAU]. Découpage : accroche (5 min), notions (15 min), activité (25 min), bilan (10 min), devoirs (5 min). Indique aussi 3 objectifs d'apprentissage formulés en verbes d'action."
+  },
+  { cat: 'Différenciation', title: 'Réécrire en français simple (FLE / dys)',
+    prompt: "Réécris le texte suivant en français simple, niveau A2, phrases courtes, vocabulaire de base, sans perdre les informations essentielles. Conserve les éventuels termes techniques mais explique-les entre parenthèses.\n\nTEXTE :\n[COLLER LE TEXTE ICI]"
+  },
+  { cat: 'Différenciation', title: 'Trois versions du même exercice',
+    prompt: "À partir de l'énoncé suivant, propose 3 versions de difficulté croissante (débutant / intermédiaire / avancé), en gardant le même contexte et la même notion. Ajoute pour chaque version un indice (coup de pouce) et le corrigé.\n\nÉNONCÉ :\n[COLLER L'ÉNONCÉ ICI]"
+  },
+  { cat: 'Évaluation', title: 'Générer un QCM',
+    prompt: "Crée un QCM de 10 questions à partir du contenu ci-dessous. Pour chaque question : 4 propositions dont 1 seule correcte, une explication brève de la bonne réponse, et un indice de difficulté (facile / moyen / difficile). Termine par une grille de correction.\n\nCONTENU :\n[COLLER LE COURS / TEXTE]"
+  },
+  { cat: 'Évaluation', title: 'Vrai/Faux + questions ouvertes',
+    prompt: "À partir du texte suivant, génère : 5 questions Vrai/Faux (avec justification de la bonne réponse), 5 QCM, et 3 questions ouvertes courtes. Adapté pour un niveau [NIVEAU].\n\nTEXTE :\n[COLLER LE TEXTE]"
+  },
+  { cat: 'Correction', title: 'Feedback bienveillant sur une production',
+    prompt: "Voici une production d'élève (anonymisée). Donne un feedback structuré en 4 parties : 1) Ce qui fonctionne bien (3 points concrets), 2) Ce qui peut être amélioré (3 points concrets), 3) Trois conseils pratiques pour progresser, 4) Une question de relance pour faire réfléchir l'élève. Reste bienveillant, précis, et adapté à un niveau [NIVEAU]. Ne propose pas de note.\n\nPRODUCTION :\n[COLLER LA PRODUCTION]"
+  },
+  { cat: 'Correction', title: 'Grille critériée (proposition)',
+    prompt: "À partir du sujet suivant, propose-moi une grille d'évaluation critériée en 5 critères, chacun noté sur 4 niveaux (Insuffisant / Fragile / Satisfaisant / Très satisfaisant) avec des descripteurs concrets et observables. Indique aussi le total maximal sur 20 et les pondérations.\n\nSUJET :\n[COLLER LE SUJET]"
+  },
+  { cat: 'Activité élève', title: 'Mise en situation / jeu de rôle métier',
+    prompt: "Imagine une mise en situation professionnelle de 30 minutes pour des apprentis en [FILIÈRE]. Personnages, contexte réaliste, problème concret à résoudre, contraintes, livrable attendu, critères de réussite. Termine par 5 questions de débriefing pour la classe."
+  },
+  { cat: 'Activité élève', title: 'Étude de cas courte',
+    prompt: "Propose une étude de cas réaliste de 20 minutes sur [THÈME] pour des élèves de [NIVEAU/FILIÈRE]. Contexte (10 lignes max), 3 questions de compréhension, 2 questions d'analyse, 1 question de prise de décision. Inclure aussi le corrigé indicatif."
+  },
+  { cat: 'Vidéo / Ressource', title: 'Transformer une vidéo en activité',
+    prompt: "À partir du résumé / transcription d'une vidéo ci-dessous, propose : un résumé en 5 points pour les élèves, une fiche de vocabulaire technique (8-10 termes définis), un QCM de 8 questions, et 2 questions d'analyse pour le bilan oral.\n\nRÉSUMÉ DE LA VIDÉO :\n[COLLER LE RÉSUMÉ OU LA TRANSCRIPTION]"
+  },
+  { cat: 'Communication', title: 'Mail aux parents / au tuteur',
+    prompt: "Rédige un mail court (10 lignes max), poli et clair, à destination [DES PARENTS / DU TUTEUR EN ENTREPRISE] sur la situation suivante : [DÉCRIRE LA SITUATION]. Ton : factuel, bienveillant, sans jugement. Termine par une proposition de rendez-vous."
+  },
+  { cat: 'Communication', title: 'Affiche / Consigne en classe',
+    prompt: "Rédige une consigne d'activité claire et motivante (8 lignes max) pour des élèves de [NIVEAU]. Format affiche A4. Inclure : objectif, étapes, durée, critères de réussite, ce qui est interdit (téléphone, IA générative, etc.)."
+  },
+  { cat: 'Révisions', title: 'Fiche de révision synthétique',
+    prompt: "À partir du cours ci-dessous, génère une fiche de révision d'une page maximum, en 4 sections : Notions clés (avec définitions), Schéma mental (description textuelle), 5 questions d'auto-évaluation avec réponse, et 3 erreurs typiques à éviter.\n\nCOURS :\n[COLLER LE COURS]"
+  },
+  { cat: 'Révisions', title: 'Flashcards à imprimer',
+    prompt: "Crée 15 flashcards (question recto / réponse verso) sur le contenu suivant, pour des élèves de [NIVEAU]. Format tableau à deux colonnes. Questions variées : définitions, applications, contre-exemples, schémas.\n\nCONTENU :\n[COLLER LE CONTENU]"
+  },
+  { cat: 'Éthique & IA', title: 'Activité d\'éducation aux médias / à l\'IA',
+    prompt: "Conçois une activité de 30 minutes pour des élèves de [NIVEAU] sur les usages responsables de l'IA générative. Inclure : un texte court d'amorce, 2-3 questions de discussion, une activité concrète (par ex. repérer des erreurs dans une production IA), et un message-clé final."
+  },
+];
+
+/* ============================================================
+   BIBLIOTHÈQUE DE PROMPTS
+============================================================ */
+let filtreCat = '';
+
+function champsDe(prompt) {
+  return [...new Set([...prompt.matchAll(/\[([^\]\n]{2,60})\]/g)].map(m => m[1]))];
+}
+
+function renderPrompts() {
+  const q = (document.getElementById('prompt-search')?.value || '').trim().toLowerCase();
+  const cats = [...new Set(PROMPTS.map(p => p.cat))];
+  const chips = document.getElementById('prompt-cats');
+  chips.innerHTML = ['', ...cats].map(c => `<button class="chip${c === filtreCat ? ' on' : ''}" data-c="${escapeHtml(c)}">${c ? escapeHtml(c) : 'Tout'}</button>`).join('');
+  chips.querySelectorAll('.chip').forEach(b => b.addEventListener('click', () => { filtreCat = b.dataset.c; renderPrompts(); }));
+
+  const correspond = p => (!filtreCat || p.cat === filtreCat) &&
+    (!q || (p.title + ' ' + p.cat + ' ' + p.prompt).toLowerCase().includes(q));
+
+  const mes = document.getElementById('mes-prompts');
+  const mesFiltres = mesPrompts.filter(p => !q || (p.title + ' ' + p.prompt).toLowerCase().includes(q));
+  document.getElementById('mes-prompts-bloc').style.display = (mesPrompts.length && !filtreCat) ? '' : 'none';
+  mes.innerHTML = '';
+  mesFiltres.forEach((p, i) => mes.appendChild(cartePrompt({ ...p, cat: 'Mes prompts' }, () => {
+    if (!confirm('Supprimer ce prompt ?')) return;
+    mesPrompts.splice(mesPrompts.indexOf(p), 1); sauverMesPrompts(); renderPrompts();
+  })));
+
+  const wrap = document.getElementById('prompts-grid');
+  wrap.innerHTML = '';
+  const liste = PROMPTS.filter(correspond);
+  liste.forEach(p => wrap.appendChild(cartePrompt(p)));
+  if (!liste.length) wrap.innerHTML = '<p class="vide">Aucun prompt ne correspond.</p>';
+}
+
+function cartePrompt(p, supprimer) {
+  const card = document.createElement('div');
+  card.className = 'prompt-card';
+  const n = champsDe(p.prompt).length;
+  card.innerHTML = `
+    <span class="prompt-category">${escapeHtml(p.cat)}</span>
+    <h3>${escapeHtml(p.title)}</h3>
+    <p>${escapeHtml(p.prompt.replace(/\s+/g, ' ')).slice(0, 120)}…</p>
+    <span class="prompt-pied">${n ? `${n} champ${n > 1 ? 's' : ''} à remplir` : 'Prêt à l\'emploi'}${supprimer ? ' · <span class="suppr">Supprimer</span>' : ''}</span>`;
+  card.addEventListener('click', e => {
+    if (e.target.classList.contains('suppr')) { supprimer(); return; }
+    ouvrirPrompt(p);
+  });
+  return card;
+}
+
+// Un prompt à trous ([NIVEAU], [THÈME]…) s'ouvre en petit formulaire : plus besoin de
+// chercher les crochets dans le texte pour les remplacer à la main.
+function ouvrirPrompt(p) {
+  const champs = champsDe(p.prompt);
+  if (!champs.length) { insererDansChat(p.prompt); return; }
+  const long = c => /COLLER|TEXTE|PRODUCTION|ÉNONCÉ|ENONCE|CONTENU|NOTES/i.test(c);
+  const fond = document.createElement('div');
+  fond.className = 'qs-overlay';
+  fond.innerHTML = `<div class="qs-modal formulaire" role="dialog" aria-modal="true">
+    <div class="qs-modal-header"><h2>${escapeHtml(p.title)}</h2><button class="close" aria-label="Fermer">×</button></div>
+    <form class="qs-modal-body">
+      ${champs.map((c, i) => `<label for="champ-${i}">${escapeHtml(c.charAt(0) + c.slice(1).toLowerCase())}</label>
+        ${long(c) ? `<textarea id="champ-${i}" rows="5"></textarea>` : `<input id="champ-${i}" type="text">`}`).join('')}
+      <p class="discret">Les champs laissés vides restent entre crochets : vous pourrez les compléter dans le chat.</p>
+      <div class="qs-modal-footer">
+        <button type="button" class="btn ghost" data-a="inserer">Insérer sans envoyer</button>
+        <button type="submit" class="btn">Envoyer →</button>
+      </div>
+    </form></div>`;
+  const remplir = () => {
+    let t = p.prompt;
+    champs.forEach((c, i) => {
+      const v = fond.querySelector('#champ-' + i).value.trim();
+      if (v) t = t.split('[' + c + ']').join(v);
+    });
+    fond.remove();
+    return t;
+  };
+  fond.querySelector('.close').addEventListener('click', () => fond.remove());
+  fond.addEventListener('click', e => { if (e.target === fond) fond.remove(); });
+  fond.querySelector('[data-a="inserer"]').addEventListener('click', () => insererDansChat(remplir()));
+  fond.querySelector('form').addEventListener('submit', e => {
+    e.preventDefault();
+    const t = remplir();
+    switchTab('chat');
+    if (/\[[^\]]+\]/.test(t)) { insererDansChat(t); flash('Complétez les champs entre crochets, puis envoyez.', 3000); }
+    else sendMessage(t);
+  });
+  document.body.appendChild(fond);
+  setTimeout(() => fond.querySelector('#champ-0')?.focus(), 30);
+}
+
+function insererDansChat(t) {
+  switchTab('chat');
+  const ta = document.getElementById('prompt-input');
+  ta.value = t; ajusterSaisie();
+  setTimeout(() => { ta.focus(); const m = t.search(/\[[^\]]+\]/); if (m >= 0) ta.setSelectionRange(m, t.indexOf(']', m) + 1); }, 60);
+}
+
+function enregistrerPrompt() {
+  const t = document.getElementById('prompt-input').value.trim();
+  if (!t) { flash('Écrivez d\'abord votre prompt dans la zone de saisie.', 2500); return; }
+  const titre = prompt('Nom de ce prompt (il rejoindra « Mes prompts » dans la bibliothèque) :', t.slice(0, 40));
+  if (!titre || !titre.trim()) return;
+  mesPrompts.unshift({ title: titre.trim().slice(0, 60), prompt: t });
+  sauverMesPrompts(); renderPrompts();
+  flash('Prompt enregistré dans la bibliothèque');
+}
+
+/* ============================================================
+   MODÈLES : catalogue, installation en un clic, suppression
+============================================================ */
+const telechargements = {};   // id → { controleur, pct, statut }
+
+function go(o) {
+  return o < 1e9 ? Math.round(o / 1e6).toLocaleString('fr-FR') + ' Mo'
+    : (o / 1e9).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' Go';
+}
+// Les étapes renvoyées par Ollama sont en anglais : on les traduit.
+function etapeEnFrancais(s) {
+  if (/^pulling manifest/.test(s)) return 'Préparation du téléchargement…';
+  if (/^pulling /.test(s)) return 'Téléchargement…';
+  if (/^verifying/.test(s)) return 'Vérification du fichier…';
+  if (/^writing manifest|^removing/.test(s)) return 'Finalisation…';
+  if (s === 'success') return 'Installé ✓';
+  return s;
+}
+
+function renderTableauModeles() {
+  const el = document.getElementById('tableau-modeles');
+  if (!el) return;
+  el.innerHTML = `<table class="modeles">
+    <thead><tr><th>Modèle</th><th>Éditeur</th><th>Taille</th><th>Mémoire conseillée</th><th>Licence</th><th>Recommandé pour</th></tr></thead>
+    <tbody>${CATALOGUE.map(c => `<tr>
+      <td><strong>${escapeHtml(c.nom)}</strong><br><code>${c.id}</code></td>
+      <td>${escapeHtml(c.editeur)}</td>
+      <td>${c.go.toLocaleString('fr-FR')} Go</td>
+      <td>${c.ram} Go</td>
+      <td>${c.licenceUrl ? `<a href="${c.licenceUrl}" target="_blank" rel="noopener">${c.licence}</a>` : `<span class="badge-libre">${c.licence}</span>`}</td>
+      <td>${c.conseil ? '⭐ ' : ''}${escapeHtml(c.pour)}${c.images ? ' <span class="badge free">images</span>' : ''}</td>
+    </tr>`).join('')}</tbody></table>`;
+  const d = document.getElementById('details-modeles');
+  if (d) d.innerHTML = CATALOGUE.map(c => `<details class="card tight">
+    <summary><strong>${escapeHtml(c.nom)}</strong> — ${escapeHtml(c.pour)}</summary>
+    <p>${escapeHtml(c.detail)}</p>
+    <p class="discret">Éditeur : ${escapeHtml(c.editeur)} · ${c.go.toLocaleString('fr-FR')} Go · licence ${escapeHtml(c.licence)} · mémoire conseillée : ${c.ram} Go</p>
+  </details>`).join('');
+}
+
+function renderModeles() {
+  const inst = document.getElementById('modeles-installes');
+  const cat = document.getElementById('modeles-catalogue');
+  if (!inst || !cat) return;
+  const enLigne = document.getElementById('status-pill').classList.contains('ok');
+  document.getElementById('modeles-hors-ligne').style.display = enLigne ? 'none' : '';
+
+  inst.innerHTML = modelesLocaux.length ? '' : '<p class="vide">Aucun modèle installé pour l\'instant.</p>';
+  modelesLocaux.forEach(m => {
+    const c = CATALOGUE.find(x => x.id === m);
+    const ligne = document.createElement('div');
+    ligne.className = 'modele-ligne';
+    ligne.innerHTML = `<div><strong>${escapeHtml(c ? c.nom : m)}</strong> <code>${escapeHtml(m)}</code>
+        <span class="discret">${window.__tailles?.[m] ? go(window.__tailles[m]) : ''}</span></div>
+      <div class="actions"><button class="btn small" data-a="utiliser">Utiliser</button>
+        <button class="btn ghost small" data-a="suppr">Supprimer</button></div>`;
+    ligne.querySelector('[data-a="utiliser"]').addEventListener('click', () => {
+      document.getElementById('model-select').value = 'local::' + m; majIndicateur(); switchTab('chat');
+      flash('Modèle choisi : ' + (c ? c.nom : m));
+    });
+    ligne.querySelector('[data-a="suppr"]').addEventListener('click', () => supprimerModele(m));
+    inst.appendChild(ligne);
+  });
+
+  cat.innerHTML = '';
+  CATALOGUE.forEach(c => {
+    const installe = modelesLocaux.includes(c.id);
+    const t = telechargements[c.id];
+    const carte = document.createElement('div');
+    carte.className = 'card tight modele-carte' + (c.conseil ? ' conseil' : '');
+    carte.innerHTML = `
+      <div class="modele-tete"><strong>${escapeHtml(c.nom)}</strong>${c.conseil ? ' <span class="badge free">conseillé</span>' : ''}${c.images ? ' <span class="badge local">lit les images</span>' : ''}</div>
+      <p>${escapeHtml(c.pour)}</p>
+      <p class="discret">${escapeHtml(c.editeur)} · ${c.go.toLocaleString('fr-FR')} Go · ordinateur de ${c.ram} Go de mémoire ou plus · ${escapeHtml(c.licence)}</p>
+      ${t ? `<div class="progression"><div style="width:${t.pct || 0}%"></div></div><p class="discret">${escapeHtml(t.statut)}</p>` : ''}
+      <div class="actions">${installe ? '<span class="badge local">✓ Installé</span>'
+        : t ? '<button class="btn ghost small" data-a="annuler">Annuler</button>'
+        : `<button class="btn small" data-a="installer" ${enLigne ? '' : 'disabled'}>Installer (${c.go.toLocaleString('fr-FR')} Go)</button>`}</div>`;
+    carte.querySelector('[data-a="installer"]')?.addEventListener('click', () => installerModele(c));
+    carte.querySelector('[data-a="annuler"]')?.addEventListener('click', () => telechargements[c.id]?.controleur.abort());
+    cat.appendChild(carte);
+  });
+}
+
+async function installerModele(c) {
+  const t = telechargements[c.id] = { controleur: new AbortController(), pct: 0, statut: 'Démarrage du téléchargement…' };
+  renderModeles();
+  let dernier = 0;
+  try {
+    const r = await fetch(settings.ollamaUrl + '/api/pull', {
+      method: 'POST', body: JSON.stringify({ model: c.id, name: c.id, stream: true }), signal: t.controleur.signal,
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lignes = buf.split('\n'); buf = lignes.pop();
+      for (const l of lignes) {
+        if (!l.trim()) continue;
+        let j; try { j = JSON.parse(l); } catch { continue; }
+        if (j.error) throw new Error(j.error);
+        if (j.total && j.completed) {
+          t.pct = Math.round(j.completed / j.total * 100);
+          t.statut = `Téléchargement : ${go(j.completed)} sur ${go(j.total)} (${t.pct} %)`;
+        } else if (j.status) {
+          t.statut = etapeEnFrancais(j.status);
+        }
+      }
+      if (Date.now() - dernier > 400) { dernier = Date.now(); if (document.getElementById('panel-models').classList.contains('active')) renderModeles(); }
+    }
+    delete telechargements[c.id];
+    await detectOllama();
+    document.getElementById('model-select').value = 'local::' + c.id; majIndicateur();
+    flash(`${c.nom} est installé et sélectionné.`, 3000);
+  } catch (e) {
+    delete telechargements[c.id];
+    if (e.name !== 'AbortError') {
+      const m = String(e.message || e);
+      flash(/newer version|requires|412/i.test(m)
+        ? 'Ce modèle demande une version plus récente d\'Ollama : mettez Ollama à jour (ollama.com/download).'
+        : 'Installation impossible : ' + m, 6000);
+    } else flash('Téléchargement annulé.');
+  }
+  renderModeles();
+}
+
+async function supprimerModele(m) {
+  if (!confirm(`Supprimer ${m} de cet ordinateur ? (Vous pourrez le réinstaller plus tard.)`)) return;
+  try {
+    const r = await fetch(settings.ollamaUrl + '/api/delete', { method: 'DELETE', body: JSON.stringify({ model: m, name: m }) });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    flash('Modèle supprimé');
+  } catch (e) { flash('Suppression impossible : ' + (e.message || e), 4000); }
+  await detectOllama(); renderModeles();
+}
+
+/* ============================================================
+   RÉGLAGES
+============================================================ */
+function bindSettings() {
+  const $ = id => document.getElementById(id);
+  const champs = {
+    ollamaUrl: $('ollama-url'), openrouterKey: $('openrouter-key'), preferOR: $('prefer-or'),
+    customNames: $('custom-names'), keepNames: $('keep-names'), reidentify: $('reidentify'),
+    showDisclaimer: $('show-disclaimer'), systemPrompt: $('system-prompt'), anon: $('anon-toggle'),
+  };
+  for (const [k, el] of Object.entries(champs)) {
+    if (el.type === 'checkbox') el.checked = !!settings[k]; else el.value = settings[k] ?? '';
+  }
+  $('anon-info').style.display = settings.anon ? 'inline' : 'none';
+
+  let delai;
+  const enregistrer = async () => {
+    const avantCle = settings.openrouterKey, avantPref = settings.preferOR;
+    for (const [k, el] of Object.entries(champs)) settings[k] = el.type === 'checkbox' ? el.checked : el.value;
+    settings.ollamaUrl = settings.ollamaUrl.trim().replace(/\/+$/, '') || defaultSettings.ollamaUrl;
+    settings.openrouterKey = settings.openrouterKey.trim();
+    $('anon-info').style.display = settings.anon ? 'inline' : 'none';
+    saveSettings();
+    if (settings.openrouterKey !== avantCle || settings.preferOR !== avantPref) {
+      if (settings.openrouterKey && !modelesOR) await chargerModelesOR();
+      populateModelSelect(modelesLocaux);
+    }
+    renderMessages();
+  };
+  Object.values(champs).forEach(el => {
+    el.addEventListener('change', enregistrer);
+    if (el.tagName === 'TEXTAREA' || el.type === 'text' || el.type === 'password')
+      el.addEventListener('input', () => { clearTimeout(delai); delai = setTimeout(enregistrer, 400); });
+  });
+
+  $('test-ollama').addEventListener('click', async () => {
+    await enregistrer();
+    const r = $('ollama-test-result');
+    r.textContent = 'Test…';
+    const models = await detectOllama();
+    const ok = $('status-pill').classList.contains('ok');
+    r.textContent = ok ? `✓ Connecté · ${models.length} modèle(s)` : '✗ Ollama injoignable. Vérifiez qu\'il est lancé.';
+    r.style.color = ok ? 'var(--ok)' : 'var(--danger)';
+  });
+  $('clear-all').addEventListener('click', () => {
+    if (!confirm('Effacer TOUTES les conversations, prompts personnels et réglages ?')) return;
+    Object.values(LS).forEach(k => localStorage.removeItem(k));
+    location.reload();
+  });
+  $('export-all').addEventListener('click', () => {
+    downloadFile('ia-locale-sauvegarde-' + new Date().toLocaleDateString('sv') + '.json',
+      JSON.stringify({ application: 'IA Locale', version: VERSION, conversations, mesPrompts,
+        settings: { ...settings, openrouterKey: '' } }, null, 2), 'application/json');
+  });
+  $('import-btn').addEventListener('click', () => $('import-file').click());
+  $('import-file').addEventListener('change', async () => {
+    const f = $('import-file').files[0]; if (!f) return;
+    try {
+      const j = JSON.parse(await f.text());
+      const ids = new Set(conversations.map(c => c.id));
+      const nouvelles = (j.conversations || []).filter(c => c && c.id && Array.isArray(c.messages) && !ids.has(c.id));
+      conversations = [...nouvelles, ...conversations].sort((a, b) => (b.created || 0) - (a.created || 0));
+      const titres = new Set(mesPrompts.map(p => p.prompt));
+      const prompts = (j.mesPrompts || []).filter(p => p && p.prompt && !titres.has(p.prompt));
+      mesPrompts = [...mesPrompts, ...prompts];
+      saveConversations(); sauverMesPrompts();
+      if (!getActiveConv() && conversations.length) activeId = conversations[0].id;
+      renderConvList(); renderMessages(); renderPrompts();
+      flash(`${nouvelles.length} conversation(s) importée(s)`, 3000);
+    } catch (e) {
+      flash('Ce fichier n\'est pas une sauvegarde IA Locale valide.', 4000);
+    }
+    $('import-file').value = '';
+  });
+}
+
+/* ============================================================
+   CHAT : saisie, raccourcis, glisser-déposer, coller une image
+============================================================ */
+function ajusterSaisie() {
+  const ta = document.getElementById('prompt-input');
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(ta.scrollHeight, 220) + 'px';
+}
+
+function bindChat() {
+  const $ = id => document.getElementById(id);
+  $('new-conv-btn').addEventListener('click', newConversation);
+  $('send-btn').addEventListener('click', () => isStreaming ? arreter() : sendMessage());
+  $('refresh-models').addEventListener('click', detectOllama);
+  $('model-select').addEventListener('change', () => { majIndicateur(); if (!getActiveConv()?.messages.length) renderMessages(); });
+  $('conv-search').addEventListener('input', renderConvList);
+  $('save-prompt-btn').addEventListener('click', enregistrerPrompt);
+  $('prompt-search').addEventListener('input', renderPrompts);
+
+  const ta = $('prompt-input');
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); if (!isStreaming) sendMessage(); }
+  });
+  ta.addEventListener('input', ajusterSaisie);
+  ta.addEventListener('paste', e => {
+    const fichiers = [...(e.clipboardData?.files || [])];
+    if (fichiers.length) { e.preventDefault(); ajouterFichiers(fichiers); }
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && isStreaming) arreter(); });
+
+  const fileInput = $('file-input');
+  $('attach-btn').addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', async () => { await ajouterFichiers([...fileInput.files]); fileInput.value = ''; });
+
+  const zone = document.querySelector('.chat-main');
+  let profondeur = 0;
+  zone.addEventListener('dragenter', e => { e.preventDefault(); profondeur++; zone.classList.add('depot'); });
+  zone.addEventListener('dragover', e => e.preventDefault());
+  zone.addEventListener('dragleave', () => { if (--profondeur <= 0) { profondeur = 0; zone.classList.remove('depot'); } });
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); profondeur = 0; zone.classList.remove('depot');
+    ajouterFichiers([...e.dataTransfer.files]);
+  });
+
+  const anon = $('anon-toggle');
+  anon.addEventListener('change', () => {
+    settings.anon = anon.checked; saveSettings();
+    $('anon-info').style.display = settings.anon ? 'inline' : 'none';
+    flash(settings.anon ? 'Anonymisation activée : prénoms et noms masqués avant l\'envoi' : 'Anonymisation désactivée');
+  });
+}
+
+/* ============================================================
+   DÉMARRAGE RAPIDE
+============================================================ */
+function showQuickStart() {
+  if (document.getElementById('qs-overlay-el')) return;
+  const overlay = document.createElement('div');
+  overlay.id = 'qs-overlay-el';
+  overlay.className = 'qs-overlay';
+  overlay.innerHTML = `
+    <div class="qs-modal" role="dialog" aria-modal="true" onclick="event.stopPropagation()">
+      <div class="qs-modal-header">
+        <h2>👋 Bienvenue dans IA Locale</h2>
+        <button class="close" onclick="hideQuickStart()" aria-label="Fermer">×</button>
+      </div>
+      <div class="qs-modal-body">
+        <p>Une IA qui tourne <strong>sur votre ordinateur</strong> : en mode local, vos textes n'en sortent pas.</p>
+        <div class="qs-steps">
+          <div class="qs-step"><div class="num">1</div><div class="content">
+            <h4>La pastille en haut à droite est verte ?</h4>
+            <p>Alors tout est prêt. Rouge : lancez Ollama (ou relancez IA Locale), puis cliquez sur ↻.</p></div></div>
+          <div class="qs-step"><div class="num">2</div><div class="content">
+            <h4>Choisissez votre modèle</h4>
+            <p>Un modèle est installé au premier lancement. D'autres s'installent en un clic dans l'onglet <strong>Modèles</strong> — certains lisent même les photos.</p></div></div>
+          <div class="qs-step"><div class="num">3</div><div class="content">
+            <h4>Posez votre question</h4>
+            <p>Tapez-la, glissez un PDF ou une photo, ou partez d'un modèle de la <strong>Bibliothèque</strong> : un petit formulaire vous guide.</p></div></div>
+        </div>
+        <p class="discret">Vous utilisiez la version 1.1 ? Vos anciennes conversations sont restées dans l'ancienne version :
+          ouvrez-la, faites <em>Réglages → Exporter</em>, puis ici <em>Réglages → Importer</em>.</p>
+      </div>
+      <div class="qs-modal-footer">
+        <button class="btn ghost" onclick="switchTab('home'); hideQuickStart()">📖 Mode d'emploi</button>
+        <button class="btn" onclick="hideQuickStart()">C'est parti →</button>
+      </div>
+    </div>`;
+  overlay.addEventListener('click', e => { if (e.target === overlay) hideQuickStart(); });
+  document.body.appendChild(overlay);
+}
+function hideQuickStart() {
+  document.getElementById('qs-overlay-el')?.remove();
+  localStorage.setItem(LS.vu, '1');
+}
+
+/* ============================================================
+   INIT
+============================================================ */
+function init() {
+  bindSettings();
+  bindChat();
+  renderPrompts();
+  renderTableauModeles();
+  if (!activeId || !getActiveConv()) {
+    if (conversations.length) activeId = conversations[0].id;
+  }
+  renderConvList();
+  renderMessages();
+  detectOllama().then(() => { if (!getActiveConv()?.messages.length) renderMessages(); });
+  if (!localStorage.getItem(LS.vu)) setTimeout(showQuickStart, 350);
+}
+init();
+</script>
+</body>
+</html>

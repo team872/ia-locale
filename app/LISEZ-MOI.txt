@@ -1,0 +1,89 @@
+═══════════════════════════════════════════════════
+  IA Locale 1.2 — une IA qui tourne sur votre ordinateur
+═══════════════════════════════════════════════════
+
+Préparation de cours, évaluations, différenciation, courriers…
+En mode local (par défaut), vos textes ne quittent pas votre ordinateur.
+
+Logiciel libre (licence MIT) — code source :
+https://github.com/team872/ia-locale
+
+
+───────────────────────────────────────────────────
+  SUR MAC
+───────────────────────────────────────────────────
+
+1. Installez Ollama : https://ollama.com/download
+   → Glissez-le dans Applications
+
+2. Glissez « IA Locale.app » dans Applications
+
+3. Double-cliquez sur « IA Locale »
+   → Au tout premier lancement, un modèle d'IA d'environ 3 Go se télécharge.
+
+⚠ Si macOS refuse d'ouvrir l'application
+  (« Apple ne peut pas vérifier… ») :
+  Réglages Système → Confidentialité et sécurité →
+  descendez jusqu'au message sur « IA Locale » →
+  « Ouvrir quand même ». Une seule fois.
+  (Sur macOS 14 et plus ancien : clic droit sur l'app → Ouvrir.)
+  L'application n'est pas signée par un certificat payant ;
+  son code est lisible sur GitHub.
+
+
+───────────────────────────────────────────────────
+  SUR WINDOWS
+───────────────────────────────────────────────────
+
+1. Installez Ollama : https://ollama.com/download
+   → Lancez OllamaSetup.exe
+
+2. Ouvrez le dossier « IA Locale » et double-cliquez
+   sur « IA Locale.bat »
+
+Pour un raccourci sur le bureau : double-cliquez une fois sur
+« Installer le raccourci bureau.bat ».
+
+⚠ Si Windows affiche SmartScreen :
+  « Informations complémentaires » → « Exécuter quand même ».
+
+
+───────────────────────────────────────────────────
+  NOUVEAU DANS LA VERSION 1.2
+───────────────────────────────────────────────────
+
+• Sécurité : l'application ne modifie plus aucun réglage d'Ollama.
+  La version 1.1 ouvrait Ollama à tous les sites web
+  (OLLAMA_ORIGINS="*") ; le nouveau lanceur annule ce réglage.
+• Onglet « Modèles » : installer un modèle en un clic, sans Terminal.
+• Photos : certains modèles lisent une image (copie, schéma).
+• Bibliothèque : des formulaires guidés, une recherche, « Mes prompts ».
+• Chat : bouton Arrêter, Régénérer, suites rapides (plus court,
+  plus simple, en tableau…), impression, recherche des conversations.
+• Anonymisation fiable sur toute la conversation (noms de famille
+  compris), avec les vrais noms rétablis à l'écran seulement.
+• Lecture des PDF sans connexion Internet.
+
+Vous utilisiez la version 1.1 ? Vos conversations sont restées dans
+l'ancienne version : ouvrez-la, Réglages → Exporter, puis dans la 1.2
+Réglages → Importer.
+
+
+───────────────────────────────────────────────────
+  CONFIGURATION CONSEILLÉE
+───────────────────────────────────────────────────
+
+Minimum :     8 Go de mémoire (modèles de 3 Go environ)
+Confortable : 16 Go de mémoire (modèles de 6 Go environ)
+Idéal :       Mac Apple Silicon ou PC avec carte graphique
+
+
+───────────────────────────────────────────────────
+  SOURCES OFFICIELLES
+───────────────────────────────────────────────────
+
+• Cadre d'usage de l'IA en éducation (juin 2025) :
+  education.gouv.fr/cadre-d-usage-de-l-ia-en-education-450647
+• CNIL — l'enseignant et l'IA :
+  cnil.fr/fr/enseignant-usage-systeme-ia
+• Ollama (logiciel libre utilisé) : ollama.com

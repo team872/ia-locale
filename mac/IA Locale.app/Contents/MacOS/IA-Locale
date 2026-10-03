@@ -1,0 +1,90 @@
+#!/bin/bash
+# IA Locale — lanceur macOS
+#
+# 1. vérifie qu'Ollama est installé ;
+# 2. défait le réglage dangereux laissé par la version 1.1 (OLLAMA_ORIGINS="*") ;
+# 3. démarre Ollama s'il ne répond pas ;
+# 4. démarre le mini-serveur local qui sert l'interface sur http://127.0.0.1:11500 ;
+# 5. télécharge le modèle par défaut au premier lancement ;
+# 6. ouvre l'interface dans le navigateur.
+
+RESSOURCES="$(cd "$(dirname "$0")/../Resources" && pwd)"
+RACINE="$RESSOURCES/app"
+PORT=11500
+ADRESSE="http://127.0.0.1:$PORT"
+OLLAMA="http://127.0.0.1:11434"
+
+notifier() {
+    osascript -e "display notification \"$2\" with title \"IA Locale\" subtitle \"$1\"" 2>/dev/null
+}
+alerte() {
+    osascript -e "display dialog \"$1\" with title \"IA Locale\" buttons {\"OK\"} default button 1 with icon caution" >/dev/null 2>&1
+}
+
+# --- 1. Ollama installé ? ---------------------------------------------------
+if [ ! -d "/Applications/Ollama.app" ] && [ ! -d "$HOME/Applications/Ollama.app" ]; then
+    osascript -e 'display dialog "Bienvenue dans IA Locale !
+
+Avant le premier lancement, installez Ollama (logiciel libre et gratuit) : c'\''est lui qui fait tourner l'\''IA sur votre ordinateur.
+
+→ La page de téléchargement va s'\''ouvrir.
+→ Téléchargez la version Mac et glissez Ollama dans Applications.
+→ Relancez ensuite IA Locale." with title "IA Locale — Installation" buttons {"Ouvrir la page de téléchargement"} default button 1 with icon note' >/dev/null 2>&1
+    open "https://ollama.com/download"
+    exit 0
+fi
+
+# --- 2. Défaire le réglage de la version 1.1 ---------------------------------
+# OLLAMA_ORIGINS="*" autorisait n'importe quel site web à piloter Ollama.
+# Ollama garde ce réglage tant qu'il tourne : on le redémarre dans la foulée.
+if [ "$(launchctl getenv OLLAMA_ORIGINS)" = "*" ]; then
+    launchctl unsetenv OLLAMA_ORIGINS
+    if pgrep -x Ollama >/dev/null 2>&1 || pgrep -x ollama >/dev/null 2>&1; then
+        osascript -e 'quit app "Ollama"' >/dev/null 2>&1
+        sleep 2
+        pkill -x ollama >/dev/null 2>&1
+        sleep 1
+    fi
+fi
+
+# --- 3. Ollama doit répondre ------------------------------------------------
+if ! curl -s --max-time 2 "$OLLAMA/api/tags" >/dev/null 2>&1; then
+    notifier "Démarrage…" "Lancement du moteur IA local"
+    open -a Ollama
+    for _ in $(seq 1 20); do
+        curl -s --max-time 2 "$OLLAMA/api/tags" >/dev/null 2>&1 && break
+        sleep 1
+    done
+fi
+
+# --- 4. Mini-serveur de l'interface -----------------------------------------
+identite="$(curl -s --max-time 2 "$ADRESSE/__ia-locale" 2>/dev/null)"
+case "$identite" in
+    "ia-locale "*" $RACINE") ;;    # c'est bien le nôtre, déjà lancé
+    "ia-locale "*)                  # serveur d'une autre copie de l'app : on le remplace
+        kill "$(echo "$identite" | cut -d' ' -f2)" 2>/dev/null
+        sleep 1
+        identite="" ;;
+esac
+if [ -z "$identite" ]; then
+    if lsof -nP -iTCP:$PORT -sTCP:LISTEN >/dev/null 2>&1; then
+        alerte "Le port $PORT est déjà utilisé par un autre logiciel : IA Locale ne peut pas démarrer. Fermez ce logiciel puis relancez IA Locale."
+        exit 1
+    fi
+    nohup /usr/bin/perl "$RESSOURCES/serveur.pl" "$RACINE" "$PORT" >/dev/null 2>&1 &
+    for _ in $(seq 1 25); do
+        curl -s --max-time 1 "$ADRESSE/__ia-locale" 2>/dev/null | grep -q "^ia-locale " && break
+        sleep 0.2
+    done
+fi
+
+# --- 5. Modèle par défaut au premier lancement ------------------------------
+if ! curl -s --max-time 3 "$OLLAMA/api/tags" 2>/dev/null | grep -q '"llama3.2'; then
+    notifier "Téléchargement initial" "Modèle llama3.2:3b (~2 Go, une seule fois)"
+    ( curl -s -X POST "$OLLAMA/api/pull" -d '{"model":"llama3.2:3b","name":"llama3.2:3b","stream":false}' >/dev/null 2>&1 && \
+      osascript -e 'display notification "Le modèle llama3.2:3b est prêt — cliquez sur ↻ dans l'\''interface" with title "IA Locale" sound name "Glass"' 2>/dev/null ) &
+fi
+
+# --- 6. Interface ------------------------------------------------------------
+open "$ADRESSE/"
+exit 0
